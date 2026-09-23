@@ -2,10 +2,13 @@ name = "jop"
 main = "src/worker.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
+account_id = "fa73541af4fcdd947ab78c12fe990a34"
+pages_build_output_dir = "dist"
 
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 # Environment Variables
 [vars]
@@ -15,7 +18,10 @@ BASE_URL = "https://roohpro.com/jop"
 MAIN_PORTAL_URL = "https://roohpro.com"
 ADS_PORTAL_URL = "https://roohpro.com/AD"
 ZONE_NAME = "roohpro.com"
-ZONE_ID = "" # Injected via CLOUDFLARE_ZONE_ID
+ZONE_ID = "a912416981352b81c89ddd294367967e"
+ACCOUNT_ID = "fa73541af4fcdd947ab78c12fe990a34"
+CLOUDFLARE_ZONE_ID = "a912416981352b81c89ddd294367967e"
+CLOUDFLARE_ACCOUNT_ID = "fa73541af4fcdd947ab78c12fe990a34"
 ADMIN_EMAIL = "" # Injected securely via GitHub Secrets
 ADMIN_EMAIL_TOKEN = "" # Injected securely via GitHub Secrets
 VITE_CF_R2_BUCKET_NAME = "roohme"

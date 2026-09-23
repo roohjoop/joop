@@ -38,15 +38,30 @@ git push -u origin main
 لكي يعمل الربط الآلي والنشر بسلاسة بين GitHub ومشروعك على Cloudflare Pages (`https://jop.pages.dev/`)، إليك قائمة الأسماء والقيم التي يمكنك إضافتها في:
 **GitHub Repository > Settings > Secrets and variables > Actions > New repository secret**:
 
-### أ) توكنات النشر على Cloudflare Pages & Workers:
-1. `CLOUDFLARE_API_TOKEN`:
-   - توكن الـ API الخاص بحسابك على Cloudflare (يتم استخراجه من Cloudflare Dashboard > My Profile > API Tokens > Create Token > Use template "Edit Cloudflare Workers").
-2. `CLOUDFLARE_ACCOUNT_ID`:
-   - معرّف حساب Cloudflare الخاص بك (تلقاه في لوحة تحكم Cloudflare في شريط العناوين أو أسفل يمين صفحة Workers & Pages).
-3. `CLOUDFLARE_ZONE_ID`:
-   - معرّف النطاق (Zone ID) الخاص بنطاقك الأساسي (مثل `roohpro.com`). يتم نسخه مباشرة من لوحة تحكم Cloudflare عند الدخول على الدومين في صفحة **Overview** بالنزول لأسفل يمين الصفحة تحت قسم **API > Zone ID**.
+### أ) توكنات ومعرّفات النشر على Cloudflare Pages & Workers:
+1. `CLOUDFLARE_API_TOKEN` (التوكن السري الرئيسي المطلوب استخراجه من Cloudflare):
+   - **الاسم الدقيق للتوكن**: `CLOUDFLARE_API_TOKEN`
+   - **كيفية استخراجه خطوة بخطوة من Cloudflare**:
+     1. افتح لوحة تحكم [Cloudflare Dashboard](https://dash.cloudflare.com).
+     2. اضغط على أيقونة حسابك (أعلى اليمين) ثم اختر **My Profile**.
+     3. من القائمة الجانبية اختر **API Tokens**.
+     4. اضغط على زر **Create Token**.
+     5. بجوار قالب **Edit Cloudflare Workers**، اضغط على **Use template**.
+     6. في خانة **Account Resources**، اختر حسابك (`fa73541af4fcdd947ab78c12fe990a34`).
+     7. في خانة **Zone Resources**، اختر **All zones** أو نطاق `roohpro.com`.
+     8. اضغط في الأسفل على **Continue to summary** ثم **Create Token**.
+     9. سيظهر لك رمز التوكن السري لمرة واحدة، انسخه وضعه في **GitHub Secrets** تحت الاسم: `CLOUDFLARE_API_TOKEN`.
+
+2. `CLOUDFLARE_ACCOUNT_ID` (معرّف الحساب الخاص بك):
+   - **القيمة المعتمدة لمشروعك**: `fa73541af4fcdd947ab78c12fe990a34`
+   - تم تثبيتها في `wrangler.toml` و `.env.example` ومربوطة بأسرار GitHub.
+
+3. `CLOUDFLARE_ZONE_ID` (معرّف النطاق الخاص بـ roohpro.com):
+   - **القيمة المعتمدة لنطاقك**: `a912416981352b81c89ddd294367967e`
+   - تم تثبيتها في `wrangler.toml` و `.env.example` ومربوطة بأسرار GitHub.
+
 4. اسم المشروع على Cloudflare:
-   - تم تعيينه تلقائياً في الكود: `jop` ليطابق رابطك: `https://jop.pages.dev/`.
+   - تم تعيينه تلقائياً في الكود: `jop` ليطابق رابطك: `https://jop.pages.dev/` و `roohpro.com/jop`.
 
 ### ب) معرّفات Cloudflare D1 و KV و R2 المربوطة تلقائياً:
 - **Cloudflare D1 Database**:
@@ -65,18 +80,18 @@ git push -u origin main
 
 ---
 
-### ج) متغيرات ومفاتيح Firebase المهيأة للتطبيق:
+### ج) متغيرات ومفاتيح Firebase المعتمدة للمشروع:
 يمكنك إضافتها إما في **GitHub Secrets** أو داخل **Cloudflare Pages > jop > Settings > Environment variables**:
 
-| اسم المتغير في GitHub / Cloudflare | القيمة الجاهزة لمشروعك | الوظيفة |
+| اسم المتغير في GitHub / Cloudflare | القيمة المعتمدة لمشروعك | الوظيفة |
 |---|---|---|
-| `VITE_FIREBASE_API_KEY` | `AIzaSyBS9hOMreOzB_bmJNCViN3BaZHPYqvEed4` | مفتاح الـ API لفايربيز |
-| `VITE_FIREBASE_PROJECT_ID` | `gen-lang-client-0107451639` | معرّف مشروع Firebase |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `gen-lang-client-0107451639.firebaseapp.com` | نطاق المصادقة والدخول |
-| `VITE_FIREBASE_DATABASE_ID` | `ai-studio-remixremixremixr-0ff5885e-8089-4896-9c0d-806790e2ed80` | قاعدة بيانات Firestore |
-| `VITE_FIREBASE_APP_ID` | `1:801425782970:web:446cd278663826a61cea83` | معرّف تطبيق الويب |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `gen-lang-client-0107451639.firebasestorage.app` | سلة التخزين السحابي |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `801425782970` | معرّف الإرسال السحابي |
+| `VITE_FIREBASE_API_KEY` | `AIzaSyDsh3MyPdlGGcly2woFtjkQigfm8CnPvys` | مفتاح الـ API لفايربيز |
+| `VITE_FIREBASE_PROJECT_ID` | `gen-lang-client-0028535414` | معرّف مشروع Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `gen-lang-client-0028535414.firebaseapp.com` | نطاق المصادقة والدخول |
+| `VITE_FIREBASE_DATABASE_ID` | `ai-studio-65fe2e47-86e3-4f46-8e5a-fb620e6eea4e` | قاعدة بيانات Firestore |
+| `VITE_FIREBASE_APP_ID` | `1:54158908506:web:bb22734289e1239488cc63` | معرّف تطبيق الويب |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `gen-lang-client-0028535414.firebasestorage.app` | سلة التخزين السحابي |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `54158908506` | معرّف الإرسال السحابي |
 | `GEMINI_API_KEY` | المفتاح الخاص بك من Google AI Studio | لتفعيل مزايا الذكاء الاصطناعي |
 
 ---

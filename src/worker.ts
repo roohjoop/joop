@@ -22,6 +22,8 @@ export interface Env {
   MAIN_PORTAL_URL?: string;
   ZONE_ID?: string;
   CLOUDFLARE_ZONE_ID?: string;
+  ACCOUNT_ID?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
   ADMIN_EMAIL?: string;
   ADMIN_EMAIL_TOKEN?: string;
   ADMIN_SECURITY_CODE?: string;
