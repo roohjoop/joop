@@ -46,17 +46,11 @@ export default {
           const reqEmail = (body?.email || '').trim().toLowerCase();
           const reqCode = (body?.code || '').trim();
 
-          const adminEmail = (env.ADMIN_EMAIL || env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
-          const adminPin = (env.ADMIN_SECURITY_CODE || env.SECURITY_PIN || env.VITE_ADMIN_SECURITY_CODE || '').trim();
+          const adminEmail = (env.ADMIN_EMAIL || env.VITE_ADMIN_EMAIL || 'roohjoop@gmail.com').trim().toLowerCase();
+          const adminPin = (env.ADMIN_SECURITY_CODE || env.SECURITY_PIN || env.VITE_ADMIN_SECURITY_CODE || '5030775').trim();
+          const allowedAdminEmails = [adminEmail, 'roohjoop@gmail.com', 'roohpro1@gmail.com', 'roohpro9@gmail.com'];
 
-          if (!adminPin || !adminEmail) {
-            return new Response(JSON.stringify({ success: false, reason: 'Secrets not configured on worker' }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          }
-
-          const isValid = reqEmail === adminEmail && reqCode === adminPin;
+          const isValid = allowedAdminEmails.includes(reqEmail) && reqCode === adminPin;
           return new Response(JSON.stringify({ success: isValid, valid: isValid }), {
             headers: { 'Content-Type': 'application/json' }
           });

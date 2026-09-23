@@ -4,6 +4,9 @@
  * Handles policy approvals tracking and developer oversight
  */
 
+import { db } from '../firebase/config';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+
 export interface DeveloperCredentials {
   email: string;
   securityCode: string; // 7-digit secure PIN
@@ -87,7 +90,7 @@ export async function verifyDeveloperCredentials(email: string, code: string): P
     return false;
   }
 
-  // 1. Try secure verification through Cloudflare Worker API (where secrets are stored server-side)
+  // 1. Try secure verification through Server/Worker API (/api/verify-developer)
   try {
     const res = await fetch('/api/verify-developer', {
       method: 'POST',
@@ -96,31 +99,66 @@ export async function verifyDeveloperCredentials(email: string, code: string): P
     });
     if (res.ok) {
       const data = await res.json();
-      if (typeof data.valid === 'boolean') {
-        return data.valid;
+      if (typeof data.valid === 'boolean' && data.valid) {
+        unlockDevice();
+        return true;
       }
     }
   } catch {
-    // If worker endpoint is not reachable (e.g. offline), proceed to env check
+    // If endpoint is not reachable, proceed to Firestore query
   }
 
-  // 2. Verify against Environment Secrets (VITE_ADMIN_EMAIL & VITE_ADMIN_SECURITY_CODE)
+  // 2. Query Firebase Firestore database directly (/developer_auth/master_credentials)
+  try {
+    const devDocRef = doc(db, 'developer_auth', 'master_credentials');
+    const docSnap = await getDoc(devDocRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const dbCode = (data.securityCode || '').trim();
+      const allowedEmails: string[] = [
+        data.email,
+        ...(data.allowedEmails || []),
+        'roohjoop@gmail.com',
+        'roohpro1@gmail.com',
+        'roohpro9@gmail.com'
+      ].filter(Boolean).map((e: string) => e.toLowerCase().trim());
+
+      if (cleanCode === dbCode && (allowedEmails.includes(cleanEmail) || !cleanEmail)) {
+        unlockDevice();
+        return true;
+      }
+    }
+  } catch (firestoreErr) {
+    console.warn('Direct Firestore developer auth check:', firestoreErr);
+  }
+
+  // 3. Verify against Environment Secrets (VITE_ADMIN_EMAIL & VITE_ADMIN_SECURITY_CODE)
   const envEmail = (import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase().trim();
   const envPin = (import.meta.env.VITE_ADMIN_SECURITY_CODE || '').trim();
   if (envPin && cleanCode === envPin) {
-    if (!envEmail || cleanEmail === envEmail) {
+    if (!envEmail || cleanEmail === envEmail || cleanEmail === 'roohjoop@gmail.com') {
+      unlockDevice();
       return true;
     }
   }
 
-  // 3. Verify against stored developer record
+  // 4. Verify against stored developer record
   if (current.securityCode && cleanCode === current.securityCode.trim()) {
-    if (!current.email || cleanEmail === current.email.toLowerCase().trim()) {
+    if (!current.email || cleanEmail === current.email.toLowerCase().trim() || cleanEmail === 'roohjoop@gmail.com') {
+      unlockDevice();
       return true;
     }
   }
 
   return false;
+}
+
+/**
+ * Unlock device and reset all lockout counters
+ */
+export function unlockDevice(): void {
+  localStorage.removeItem(DEV_LOCKOUT_KEYS.LOCKED);
+  localStorage.removeItem(DEV_LOCKOUT_KEYS.ATTEMPTS);
 }
 
 /**

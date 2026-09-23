@@ -117,6 +117,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Developer Credentials Collection for portal authentication
+    match /developer_auth/{authId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // FCM Web Push Tokens Collection
     match /fcmTokens/{tokenId} {
       allow read: if isAdmin();

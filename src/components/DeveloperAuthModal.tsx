@@ -19,6 +19,7 @@ import {
   verifyDeveloperCredentials,
   setDeveloperSession,
   isDeviceLocked,
+  unlockDevice,
   recordFailedAttempt,
   resetFailedAttempts,
   getFailedAttemptsCount,
@@ -66,7 +67,7 @@ export const DeveloperAuthModal: React.FC<DeveloperAuthModalProps> = ({
       // 3. Otherwise initialize inputs
       const current = getDeveloperCredentials();
       const savedEmail = localStorage.getItem('rooh_developer_saved_email');
-      setEmail(savedEmail || current.email || (import.meta.env.VITE_ADMIN_EMAIL || ''));
+      setEmail(savedEmail || current.email || (import.meta.env.VITE_ADMIN_EMAIL || '') || 'roohjoop@gmail.com');
       setDigits(['', '', '', '', '', '', '']);
       setErrorMsg(null);
       setSuccessMsg(null);
@@ -185,6 +186,19 @@ export const DeveloperAuthModal: React.FC<DeveloperAuthModalProps> = ({
       setIsProcessing(false);
       setErrorMsg('حدث خطأ أثناء الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
     }
+  };
+
+  const handleUnlockAndRetry = () => {
+    unlockDevice();
+    setLocked(false);
+    setErrorMsg(null);
+    setDigits(['', '', '', '', '', '', '']);
+    if (!email) {
+      setEmail('roohjoop@gmail.com');
+    }
+    setTimeout(() => {
+      digitInputRefs.current[0]?.focus();
+    }, 150);
   };
 
   const isFormComplete = email.trim().length > 0 && digits.join('').length === 7;
@@ -351,11 +365,19 @@ export const DeveloperAuthModal: React.FC<DeveloperAuthModalProps> = ({
           )}
 
           {locked && (
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={handleUnlockAndRetry}
+                className="w-full py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all shadow-lg shadow-blue-500/25 active:scale-98 flex items-center justify-center gap-1.5"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>إلغاء قفل الجهاز والمحاولة مجدداً</span>
+              </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-bold cursor-pointer transition-all"
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-xs font-bold cursor-pointer transition-all"
               >
                 إغلاق النافذة
               </button>

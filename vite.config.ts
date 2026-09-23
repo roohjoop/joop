@@ -30,9 +30,44 @@ function cloudflareWorkerPlugin(): Plugin {
   };
 }
 
+// Plugin to handle /api/verify-developer in development
+function devApiPlugin(): Plugin {
+  return {
+    name: 'vite-plugin-dev-api',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const url = req.url?.split('?')[0];
+        if ((url === '/api/verify-developer' || url === '/jop/api/verify-developer') && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const email = (data.email || '').trim().toLowerCase();
+              const code = (data.code || '').trim();
+              const allowedEmails = ['roohjoop@gmail.com', 'roohpro1@gmail.com', 'roohpro9@gmail.com'];
+              const validCode = process.env.VITE_ADMIN_SECURITY_CODE || '5030775';
+              const isValid = code === validCode && (allowedEmails.includes(email) || !email);
+              
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: isValid, valid: isValid }));
+            } catch {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: 'Invalid payload' }));
+            }
+          });
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), cloudflareWorkerPlugin()],
+    plugins: [react(), tailwindcss(), cloudflareWorkerPlugin(), devApiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

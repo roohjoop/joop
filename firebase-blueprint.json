@@ -99,6 +99,19 @@
         "userAgent": { "type": "string", "maxLength": 300 }
       },
       "required": ["token"]
+    },
+    "DeveloperAuth": {
+      "title": "DeveloperAuth",
+      "description": "Developer console credentials and access controls",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 120 },
+        "securityCode": { "type": "string", "maxLength": 30 },
+        "allowedEmails": { "type": "array" },
+        "role": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["email", "securityCode"]
     }
   },
   "firestore": {
@@ -125,6 +138,10 @@
     "/fcmTokens/{tokenId}": {
       "schema": "FcmToken",
       "description": "FCM device registration tokens for web push notifications"
+    },
+    "/developer_auth/{authId}": {
+      "schema": "DeveloperAuth",
+      "description": "Developer credentials verification record"
     }
   }
 }
