@@ -49,7 +49,10 @@ jobs:
           VITE_ADMIN_SECURITY_CODE: ${{ secrets.ADMIN_SECURITY_CODE || secrets.SECURITY_PIN }}
           VITE_CF_R2_BUCKET_NAME: ${{ secrets.VITE_CF_R2_BUCKET_NAME || 'roohme' }}
           VITE_CF_R2_PUBLIC_URL: ${{ secrets.VITE_CF_R2_PUBLIC_URL || 'https://media.roohpro.com' }}
-        run: npm run build
+        run: |
+          rm -f public/_redirects dist/_redirects
+          npm run build
+          rm -f dist/_redirects public/_redirects
 
       - name: Deploy to Cloudflare
         env:
@@ -62,6 +65,7 @@ jobs:
           ADMIN_EMAIL_TOKEN: ${{ secrets.ADMIN_EMAIL_TOKEN }}
         run: |
           echo "=== Starting Cloudflare deployment ==="
+          rm -f dist/_redirects public/_redirects
 
           # Sanitize token vs key authentication
           if [ -z "${CLOUDFLARE_API_TOKEN// }" ]; then
