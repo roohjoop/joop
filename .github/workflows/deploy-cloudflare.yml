@@ -13,7 +13,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    name: Build & Deploy to Cloudflare (jop)
+    name: Build & Deploy to Cloudflare (joop)
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,7 +25,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          rm -f bun.lock bun.lockb
+          npm install --legacy-peer-deps
 
       - name: Build Project & Worker
         env:
@@ -87,11 +89,11 @@ jobs:
           echo "Checking Cloudflare authentication..."
           npx wrangler whoami || echo "Notice: Token check completed."
 
-          echo "Deploying Cloudflare Worker & Static Assets (jop)..."
+          echo "Deploying Cloudflare Worker & Static Assets (joop)..."
           if npx wrangler deploy; then
             echo "✅ Cloudflare Worker & Static Assets deployment successful!"
             exit 0
           else
             echo "Deploying via Pages fallback..."
-            npx wrangler pages deploy dist --project-name=jop --branch=main --commit-dirty
+            npx wrangler pages deploy dist --project-name=joop --branch=main --commit-dirty
           fi
