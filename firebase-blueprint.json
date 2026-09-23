@@ -1,0 +1,113 @@
+{
+  "entities": {
+    "JobPost": {
+      "title": "JobPost",
+      "description": "A job opportunity or job seeker profile listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["job", "seeker"] },
+        "title": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "company": { "type": "string", "maxLength": 120 },
+        "location": { "type": "string", "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 60 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "whatsapp": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 120 },
+        "salary": { "type": "string", "maxLength": 80 },
+        "experience": { "type": "string", "maxLength": 80 },
+        "category": { "type": "string", "maxLength": 80 },
+        "verified": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["active", "closed", "pending"] }
+      },
+      "required": ["id", "type", "title", "description", "location"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with contact info and coin balance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "maxLength": 60 },
+        "bio": { "type": "string", "maxLength": 500 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "whatsapp": { "type": "string", "maxLength": 30 },
+        "email": { "type": "string", "maxLength": 120 },
+        "coins": { "type": "number" },
+        "policyAccepted": { "type": "boolean" },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "name"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "Public discussion and inquiry comment on a job listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "postId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "content": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "postId", "content", "userName"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Private direct technical support conversation with email isolation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["open", "replied", "closed"] },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "updatedAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "userEmail", "status"]
+    },
+    "AdReport": {
+      "title": "AdReport",
+      "description": "Report of inappropriate advertisement banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "adId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "maxLength": 500 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["id", "adId", "reason"]
+    }
+  },
+  "firestore": {
+    "/posts/{postId}": {
+      "schema": "JobPost",
+      "description": "Job offers and job seeker profiles"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Registered user profile details"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Post inquiry comments"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": "SupportTicket",
+      "description": "Direct support tickets with email-based isolation"
+    },
+    "/ad_reports/{reportId}": {
+      "schema": "AdReport",
+      "description": "User reports for ads"
+    }
+  }
+}

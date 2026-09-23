@@ -1,0 +1,39 @@
+name = "jop"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "production"
+PLATFORM_NAME = "شغل وتقنية - Rooh Pro Jobs"
+BASE_URL = "https://roohpro.com/jop"
+MAIN_PORTAL_URL = "https://roohpro.com"
+ADS_PORTAL_URL = "https://roohpro.com/AD"
+ZONE_NAME = "roohpro.com"
+ZONE_ID = "" # Injected via CLOUDFLARE_ZONE_ID
+ADMIN_EMAIL = "" # Injected securely via GitHub Secrets
+ADMIN_EMAIL_TOKEN = "" # Injected securely via GitHub Secrets
+VITE_CF_R2_BUCKET_NAME = "roohme"
+VITE_CF_R2_PUBLIC_URL = "https://media.roohpro.com"
+
+# 1. Cloudflare D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "h"
+database_id = "8480585e-443f-4ef9-b4e4-45c941c9dbf1"
+
+# 2. Cloudflare KV Namespace Binding
+[[kv_namespaces]]
+binding = "ROOH_KV"
+id = "6d9110610f2c45b09c15d3f2f5dee50a"
+
+# 3. Cloudflare R2 Bucket Binding
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "roohme"
+preview_bucket_name = "roohme"

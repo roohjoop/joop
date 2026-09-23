@@ -1,0 +1,8 @@
+{
+  "name": "شغل وتقنيه",
+  "description": "منصة التوظيف وسوق العمل الذكي بنظام الفيديوهات القصيرة والشبكة التفاعلية",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
