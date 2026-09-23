@@ -93,6 +93,5 @@ jobs:
             exit 0
           else
             echo "Deploying via Pages fallback..."
-            npx wrangler pages project create jop --production-branch=main --compatibility-date=2024-09-23 || true
             npx wrangler pages deploy dist --project-name=jop --branch=main --commit-dirty
           fi

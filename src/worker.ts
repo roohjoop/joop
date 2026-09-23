@@ -15,6 +15,7 @@ export interface Env {
   ROOH_MEDIA_BUCKET?: any; // Fallback / backward compat
   ROOH_KV?: any;           // Cloudflare KVNamespace ('6d9110610f2c45b09c15d3f2f5dee50a')
   DB?: any;                // Cloudflare D1Database ('h' / 8480585e-443f-4ef9-b4e4-45c941c9dbf1)
+  STATIC_ASSETS?: any;     // Cloudflare Fetcher for Static Assets
   ASSETS?: any;            // Cloudflare Fetcher
   VITE_CF_R2_BUCKET_NAME?: string;
   VITE_CF_R2_PUBLIC_URL?: string;
@@ -150,8 +151,9 @@ export default {
       }
 
       // If assets fetcher is available, fetch index.html and inject meta
-      if (env.ASSETS) {
-        const assetResponse = await env.ASSETS.fetch(new Request(new URL('/index.html', request.url)));
+      const assetHandler = env.STATIC_ASSETS || env.ASSETS;
+      if (assetHandler) {
+        const assetResponse = await assetHandler.fetch(new Request(new URL('/index.html', request.url)));
         let html = await assetResponse.text();
         html = html.replace(/<title>.*?<\/title>/, `<title>${customTitle}</title>`);
         html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${customDesc}" />`);
@@ -165,8 +167,9 @@ export default {
     }
 
     // 4. Default Asset Fetching
-    if (env.ASSETS) {
-      return env.ASSETS.fetch(request);
+    const defaultAssetHandler = env.STATIC_ASSETS || env.ASSETS;
+    if (defaultAssetHandler) {
+      return defaultAssetHandler.fetch(request);
     }
 
     return new Response('Rooh Pro Jobs Platform Worker Active (roohpro.com/jop)', {
