@@ -1125,10 +1125,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                               </p>
                             )}
 
-                            {/* Short URL Strip & Archiving Notice */}
+                            {/* Short URL Strip */}
                             <div className="bg-slate-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[10.5px]">
                               <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="font-bold text-slate-500 shrink-0">الرابط القصير للأرشفة:</span>
+                                <span className="font-bold text-slate-500 shrink-0">رابط الإعلان المختصر:</span>
                                 <span className="font-mono text-[10px] text-blue-800 font-bold truncate dir-ltr">
                                   {shortUrl}
                                 </span>
@@ -1150,7 +1150,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                             {/* Bottom Actions: Delete Post Confirmation */}
                             <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
                               <span className="text-[10px] text-slate-400">
-                                تمت مزامنة الأرشفة مع Roohpro.com
+                                رابط معتمد عبر Roohpro.com
                               </span>
 
                               {isDeletingThis ? (

@@ -21,6 +21,7 @@ import {
 } from './data/initialJobs';
 import { searchAndFilterListings } from './utils/indexer';
 import { dispatchPushNotification, playCustomNotificationSound } from './utils/notifications';
+import { initializeFCM } from './firebase/messaging';
 import { usePWAInstall } from './utils/usePWAInstall';
 import { Header } from './components/Header';
 import { TopBannerAd } from './components/TopBannerAd';
@@ -436,6 +437,24 @@ export default function App() {
       setIsGlobalPrivacyOpen(true);
       setGlobalPrivacyTab('policy');
     }
+  }, []);
+
+  // Initialize Firebase Cloud Messaging (Web Push Notifications with Official VAPID Key)
+  useEffect(() => {
+    initializeFCM((payload) => {
+      setNotifications((prev) => [
+        {
+          id: 'fcm_' + Date.now(),
+          title: payload.title,
+          description: payload.body,
+          time: 'الآن',
+          read: false,
+          type: 'job',
+          jobId: payload.data?.jobId
+        },
+        ...prev
+      ]);
+    }).catch((err) => console.warn('FCM registration note:', err));
   }, []);
 
   const handleDeletePost = (jobId: string) => {

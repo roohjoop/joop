@@ -164,17 +164,17 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
   return (
     <>
       <div 
-        className={`w-full max-w-[350px] md:max-w-[480px] rounded-2xl sm:rounded-3xl bg-white border-2 border-amber-400 shadow-2xl overflow-hidden flex flex-col shrink-0 select-none relative transition-all duration-300 ${className}`}
+        className={`w-full max-w-[350px] rounded-2xl sm:rounded-3xl bg-white border-2 border-amber-400 shadow-2xl overflow-hidden flex flex-col justify-between shrink-0 select-none relative transition-all duration-300 ${className}`}
         dir="rtl"
       >
         {/* 1. Standardized Header with Unified "AD" Badge and Small Report Button */}
-        <div className="p-2 sm:p-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white flex items-center justify-between shrink-0 shadow-sm">
+        <div className="px-3 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-2">
             {/* Unified Distinctive Yellow Framed AD Emblem Badge */}
             <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-md border-2 border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.6)] font-mono tracking-wider">
               AD
             </span>
-            <span className="text-[11px] font-black text-white truncate max-w-[130px] sm:max-w-[180px]">
+            <span className="text-xs font-black text-white truncate max-w-[170px]">
               {currentBanner.sponsorName}
             </span>
           </div>
@@ -201,156 +201,149 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
           </div>
         </div>
 
-        {/* 2. Visual Media Section & Details */}
-        <div className="flex flex-col md:flex-row flex-1">
-          
-          {/* Media Frame (Video Player or Image Artwork) */}
-          <div className="relative w-full md:w-[220px] h-[160px] md:h-auto min-h-[160px] shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center">
-            {isYoutube ? (
-              <div className="w-full h-full relative bg-black flex items-center justify-center">
-                <iframe
-                  src={getYouTubeEmbedUrl(mediaSource, isMuted)}
-                  title={currentBanner.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              </div>
-            ) : isVideo ? (
-              <div className="relative w-full h-full flex items-center justify-center bg-black">
-                <video 
-                  ref={videoRef}
-                  src={mediaSource}
-                  autoPlay
-                  muted={isMuted}
-                  loop
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+        {/* 2. Visual Media Section: Full 350px YouTube 16:9 Aspect Video Player */}
+        <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden shrink-0">
+          {isYoutube ? (
+            <iframe
+              src={getYouTubeEmbedUrl(mediaSource, isMuted)}
+              title={currentBanner.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full border-0"
+            />
+          ) : isVideo ? (
+            <div className="relative w-full h-full flex items-center justify-center bg-black">
+              <video 
+                ref={videoRef}
+                src={mediaSource}
+                autoPlay
+                muted={isMuted}
+                loop
+                playsInline
+                className="w-full h-full object-cover"
+              />
 
-                {/* Mute/Unmute Audio Button: Icon ONLY without words */}
-                <button
-                  type="button"
-                  onClick={toggleSound}
-                  className={`absolute top-2 left-2 z-20 p-2 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
-                    isMuted 
-                      ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
-                      : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                  }`}
-                  title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                  aria-label={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-3.5 h-3.5 stroke-[2.5]" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                  )}
-                </button>
+              {/* Mute/Unmute Audio Button: Icon ONLY without words */}
+              <button
+                type="button"
+                onClick={toggleSound}
+                className={`absolute top-2 left-2 z-20 p-2 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
+                  isMuted 
+                    ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
+                    : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                }`}
+                title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
+                aria-label={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
+              >
+                {isMuted ? (
+                  <VolumeX className="w-3.5 h-3.5 stroke-[2.5]" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                )}
+              </button>
 
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
-              </div>
-            ) : (
-              <div className="relative w-full h-full">
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+            </div>
+          ) : (
+            <div className="relative w-full h-full">
+              <img 
+                src={currentBanner.imageUrl} 
+                alt={currentBanner.title}
+                className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+            </div>
+          )}
+
+          {/* Badge over media */}
+          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10">
+            <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 border border-yellow-300 font-mono text-[9.5px] font-black px-2 py-0.5 rounded shadow-sm">
+              AD
+            </span>
+            {isVideo && (
+              <span className="px-1.5 py-0.5 bg-red-600/90 text-white text-[9px] font-bold rounded flex items-center gap-0.5">
+                <Play className="w-2.5 h-2.5 fill-current" />
+                فيديو
+              </span>
+            )}
+          </div>
+
+          {/* Sponsor Award Icon */}
+          <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md bg-white/90 backdrop-blur-md flex items-center justify-center border border-white shadow-sm z-10">
+            <Award className="w-3.5 h-3.5 text-amber-600" />
+          </div>
+        </div>
+
+        {/* 3. Content Details & Action Controls: Balanced & Spacious layout */}
+        <div className="p-3 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/40">
+          <div>
+            {/* Standard Platform Image Thumbnail (55x55 px square) + Title with moderate spacing to avoid text overlap */}
+            <div className="flex items-start gap-2.5 mb-2">
+              <div className="w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 border-amber-400 shadow-md shrink-0 bg-slate-900 flex items-center justify-center">
                 <img 
-                  src={currentBanner.imageUrl} 
-                  alt={currentBanner.title}
-                  className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                  src={currentBanner.imageUrl || '/icon.svg'} 
+                  alt={currentBanner.sponsorName}
+                  className="w-[55px] h-[55px] object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 border border-amber-300 font-mono text-[9px] font-black rounded">
+                    AD
+                  </span>
+                  <span className="text-[10.5px] font-black text-slate-600 truncate">
+                    {currentBanner.sponsorName}
+                  </span>
+                </div>
+                <h3 className="text-xs sm:text-[13px] font-black text-slate-900 leading-snug line-clamp-2">
+                  {currentBanner.title}
+                </h3>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2 font-medium">
+              منصة شغل وتقنية • استكشف العرض الحصري وقم بالتحميل والتثبيت المباشر
+            </p>
+          </div>
+
+          <div className="mt-2 pt-2 border-t border-amber-100">
+            {/* Indicators if multiple banners */}
+            {activeBanners.length > 1 && (
+              <div className="flex items-center justify-between mb-1.5 text-[9px] text-slate-400">
+                <span>إعلان {currentIdx + 1} من {activeBanners.length}</span>
+                <div className="flex items-center gap-1">
+                  {activeBanners.map((_, i) => (
+                    <span
+                      key={i}
+                      onClick={() => setCurrentIdx(i)}
+                      className={`cursor-pointer rounded-full transition-all ${
+                        i === currentIdx ? 'w-3 h-1 bg-amber-500' : 'w-1 h-1 bg-slate-300'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Badge over media */}
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10">
-              <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 border border-yellow-300 font-mono text-[9.5px] font-black px-2 py-0.5 rounded shadow-sm">
-                AD
+            {/* 4. Action CTA Download / Install Button */}
+            <button
+              onClick={handleOpenAd}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+            >
+              {currentBanner.buttonType === 'download' ? (
+                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              ) : currentBanner.buttonType === 'install' ? (
+                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              ) : (
+                <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+              )}
+              <span>
+                {currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل الآن' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال')}
               </span>
-              {isVideo && (
-                <span className="px-1.5 py-0.5 bg-red-600/90 text-white text-[9px] font-bold rounded flex items-center gap-0.5">
-                  <Play className="w-2.5 h-2.5 fill-current" />
-                  فيديو
-                </span>
-              )}
-            </div>
-
-            {/* Sponsor Award Icon */}
-            <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md bg-white/90 backdrop-blur-md flex items-center justify-center border border-white shadow-sm z-10">
-              <Award className="w-3.5 h-3.5 text-amber-600" />
-            </div>
+              <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
           </div>
-
-          {/* 3. Content Details & Action Controls */}
-          <div className="p-3 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/40">
-            <div>
-              {/* Standard Platform Image Thumbnail (55x55 px square) + Title */}
-              <div className="flex items-start gap-2.5 mb-2">
-                <div className="w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 border-amber-400 shadow-md shrink-0 bg-slate-900 flex items-center justify-center">
-                  <img 
-                    src={currentBanner.imageUrl || '/icon.svg'} 
-                    alt={currentBanner.sponsorName}
-                    className="w-[55px] h-[55px] object-cover"
-                  />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 border border-amber-300 font-mono text-[9px] font-black rounded">
-                      AD
-                    </span>
-                    <span className="text-[10px] font-black text-slate-600 truncate">
-                      {currentBanner.sponsorName}
-                    </span>
-                  </div>
-                  <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug line-clamp-2">
-                    {currentBanner.title}
-                  </h3>
-                </div>
-              </div>
-
-              <p className="text-[10.5px] text-slate-500 leading-relaxed line-clamp-2">
-                منصة شغل وتقنية • استكشف العرض الحصري وقم بالتحميل والتثبيت المباشر
-              </p>
-            </div>
-
-            <div className="mt-2 pt-2 border-t border-amber-100">
-              {/* Indicators if multiple banners */}
-              {activeBanners.length > 1 && (
-                <div className="flex items-center justify-between mb-1.5 text-[9px] text-slate-400">
-                  <span>إعلان {currentIdx + 1} من {activeBanners.length}</span>
-                  <div className="flex items-center gap-1">
-                    {activeBanners.map((_, i) => (
-                      <span
-                        key={i}
-                        onClick={() => setCurrentIdx(i)}
-                        className={`cursor-pointer rounded-full transition-all ${
-                          i === currentIdx ? 'w-3 h-1 bg-amber-500' : 'w-1 h-1 bg-slate-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 4. Action CTA Download / Install Button */}
-              <button
-                onClick={handleOpenAd}
-                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-              >
-                {currentBanner.buttonType === 'download' ? (
-                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                ) : currentBanner.buttonType === 'install' ? (
-                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-                ) : (
-                  <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
-                )}
-                <span>
-                  {currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل الآن' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال')}
-                </span>
-                <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
-              </button>
-            </div>
-          </div>
-
         </div>
 
       </div>

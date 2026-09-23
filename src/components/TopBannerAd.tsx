@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Download, ExternalLink, X, ShieldAlert, ChevronDown, ChevronUp, Play, Volume2, VolumeX } from 'lucide-react';
-import { getDeveloperAdsState, DeveloperAdsState, DeveloperBannerAd, BannerColorTheme } from '../utils/adsManager';
+import { getDeveloperAdsState, DeveloperAdsState, DeveloperBannerAd } from '../utils/adsManager';
 import { AdReportModal } from './AdReportModal';
 
 interface TopBannerAdProps {
@@ -25,7 +25,6 @@ interface ThemeStyles {
   reportIcon: string;
   closeBtn: string;
   divider: string;
-  indicatorActive: string;
 }
 
 const THEME_STYLES: Record<ConcreteColorTheme, ThemeStyles> = {
@@ -34,7 +33,7 @@ const THEME_STYLES: Record<ConcreteColorTheme, ThemeStyles> = {
     borderColor: 'border-rose-400/50',
     titleClass: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.85)] group-hover:text-amber-200 transition-colors',
     sponsorClass: 'text-amber-200 font-extrabold drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]',
-    imageBorder: 'border-white/80 shadow-md',
+    imageBorder: 'border-white/90 shadow-md',
     videoTag: 'bg-black/40 text-amber-300 border-amber-300/40',
     ctaButton: 'bg-white text-slate-950 hover:bg-amber-100 border-white/60 shadow-sm font-black',
     ctaIconColor: 'text-red-600',
@@ -44,15 +43,14 @@ const THEME_STYLES: Record<ConcreteColorTheme, ThemeStyles> = {
     reportBtn: 'bg-black/30 hover:bg-black/50 text-amber-200 hover:text-white border-white/20',
     reportIcon: 'text-amber-300',
     closeBtn: 'text-white/80 hover:text-white hover:bg-black/30',
-    divider: 'border-white/20',
-    indicatorActive: 'bg-red-400 ring-2 ring-white scale-110'
+    divider: 'border-white/25',
   },
   blue: {
     containerBg: 'bg-gradient-to-r from-blue-700 via-indigo-700 to-sky-700',
     borderColor: 'border-sky-400/50',
     titleClass: 'text-white font-black drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.85)] group-hover:text-cyan-200 transition-colors',
     sponsorClass: 'text-sky-200 font-extrabold drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]',
-    imageBorder: 'border-white/80 shadow-md',
+    imageBorder: 'border-white/90 shadow-md',
     videoTag: 'bg-black/40 text-sky-300 border-sky-300/40',
     ctaButton: 'bg-white text-blue-950 hover:bg-sky-50 border-white/60 shadow-sm font-black',
     ctaIconColor: 'text-blue-600',
@@ -62,16 +60,14 @@ const THEME_STYLES: Record<ConcreteColorTheme, ThemeStyles> = {
     reportBtn: 'bg-black/30 hover:bg-black/50 text-sky-200 hover:text-white border-white/20',
     reportIcon: 'text-sky-300',
     closeBtn: 'text-white/80 hover:text-white hover:bg-black/30',
-    divider: 'border-white/20',
-    indicatorActive: 'bg-sky-400 ring-2 ring-white scale-110'
+    divider: 'border-white/25',
   },
   yellow: {
-    // Ultra-clear contrast on vibrant golden yellow: dark text, punchy black CTA, sharp borders
     containerBg: 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500',
     borderColor: 'border-amber-600/50',
     titleClass: 'text-slate-950 font-black drop-shadow-[0_1px_0px_rgba(255,255,255,0.8)] group-hover:text-black transition-colors',
     sponsorClass: 'text-amber-950 font-black drop-shadow-none',
-    imageBorder: 'border-slate-950/60 shadow-md',
+    imageBorder: 'border-slate-950/70 shadow-md',
     videoTag: 'bg-slate-950 text-yellow-300 border-slate-950 font-black',
     ctaButton: 'bg-slate-950 text-white hover:bg-slate-800 border-slate-900 shadow-md font-black',
     ctaIconColor: 'text-yellow-400',
@@ -81,8 +77,7 @@ const THEME_STYLES: Record<ConcreteColorTheme, ThemeStyles> = {
     reportBtn: 'bg-slate-950/15 hover:bg-slate-950/25 text-slate-950 hover:text-black border-slate-950/30',
     reportIcon: 'text-slate-950',
     closeBtn: 'text-slate-900 hover:text-black hover:bg-slate-950/15',
-    divider: 'border-slate-950/25',
-    indicatorActive: 'bg-amber-950 ring-2 ring-yellow-200 scale-110'
+    divider: 'border-slate-950/30',
   }
 };
 
@@ -123,16 +118,60 @@ export function getYouTubeEmbedUrl(url: string, muted: boolean = true): string {
   return url;
 }
 
+/**
+ * Normalizes button label to concise text (e.g. 'تحميل الآن', 'تثبيت الآن', 'انتقل الآن')
+ * to guarantee optimal spacing and avoid encroaching upon the title.
+ */
+function getCompactButtonLabel(banner: DeveloperBannerAd): string {
+  const raw = (banner.buttonLabel || '').trim();
+  if (
+    raw === 'تحميل التطبيق الآن' ||
+    raw === 'تحميل التطبيق' ||
+    raw === 'تحميل' ||
+    banner.buttonType === 'download'
+  ) {
+    return 'تحميل الآن';
+  }
+  if (
+    raw === 'تثبيت التطبيق الآن' ||
+    raw === 'تثبيت التطبيق' ||
+    raw === 'تثبيت العرض' ||
+    raw === 'تثبيت' ||
+    banner.buttonType === 'install'
+  ) {
+    return 'تثبيت الآن';
+  }
+  if (
+    raw === 'استكشاف الباقات' ||
+    raw === 'استكشف الباقات' ||
+    raw === 'انتقال' ||
+    raw === 'انتقال الآن' ||
+    banner.buttonType === 'navigate'
+  ) {
+    return 'انتقل الآن';
+  }
+  return raw || 'انتقل الآن';
+}
+
 export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   const [adsState, setAdsState] = useState<DeveloperAdsState>(() => getDeveloperAdsState());
   const [currentAdIndex, setCurrentAdIndex] = useState(0);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
-  const [userSelectedColor, setUserSelectedColor] = useState<ConcreteColorTheme | null>(null);
   const [isVisible, setIsVisible] = useState(true);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isVideoExpanded, setIsVideoExpanded] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up any pending re-open timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Listen to developer ads configuration updates in realtime
   useEffect(() => {
@@ -151,21 +190,44 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   // Filter active banners
   const activeBanners = (adsState.customBanners || []).filter(b => b.active);
 
+  // Close banner handler: Hides current banner and shows a DIFFERENT ad after exactly 3 seconds
+  const handleCloseBanner = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    
+    // Hide current banner and reset expanded video immediately
+    setIsVisible(false);
+    setIsVideoExpanded(false);
+
+    // Clear any previous timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+
+    // After strictly 3 seconds (3000ms), rotate to a DIFFERENT ad and re-show
+    closeTimeoutRef.current = setTimeout(() => {
+      setCurrentAdIndex((prevIndex) => {
+        const count = activeBanners.length;
+        if (count <= 1) return prevIndex;
+        return (prevIndex + 1) % count;
+      });
+      setColorCycleIndex((prev) => (prev + 1) % COLOR_CYCLE_LIST.length);
+      setIsVisible(true);
+    }, 3000);
+  };
+
   // Rotate banner ads & rotate color themes smoothly (Red -> Blue -> Yellow) ONLY when video is not expanded
-  // Strictly rotated every 15 seconds (15,000ms) as mandated by user specifications
   useEffect(() => {
     if (isVideoExpanded) return;
 
     const timer = setInterval(() => {
-      // Rotate active ad banner if more than 1
       if (activeBanners.length > 1) {
         setCurrentAdIndex((prev) => (prev + 1) % activeBanners.length);
       }
-      // Always rotate color theme smoothly every cycle (Red -> Blue -> Yellow)
       setColorCycleIndex((prev) => (prev + 1) % COLOR_CYCLE_LIST.length);
-      // Reset manual override on timer cycle so dynamic change keeps going
-      setUserSelectedColor(null);
-    }, TOP_BANNER_ROTATION_INTERVAL_MS); // Strictly 15 seconds (15000ms)
+    }, TOP_BANNER_ROTATION_INTERVAL_MS);
 
     return () => clearInterval(timer);
   }, [activeBanners.length, isVideoExpanded]);
@@ -185,12 +247,11 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   if (adsState.adsenseEnabled) {
     return (
       <div 
-        className="w-full h-[62px] min-h-[62px] max-h-[62px] shrink-0 bg-slate-900 border-b border-slate-800 text-white shadow-md relative overflow-hidden select-none flex items-center justify-between px-3 z-30"
+        className="w-full h-[74px] sm:h-[90px] min-h-[74px] sm:min-h-[90px] shrink-0 bg-slate-900 border-b border-slate-800 text-white shadow-md relative overflow-hidden select-none flex items-center justify-between px-3 z-30"
         dir="rtl"
       >
         <div className="flex items-center gap-2">
-          {/* Distinctive Yellow Framed AD Badge */}
-          <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md border-2 border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.6)] font-mono tracking-wider">
+          <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md border border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.6)] font-mono tracking-wider">
             AD
           </span>
           <span className="text-xs text-slate-300 font-medium">
@@ -198,7 +259,6 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
           </span>
         </div>
 
-        {/* AdSense ins container */}
         <div className="flex-1 max-w-md mx-4 h-full flex items-center justify-center">
           <ins 
             className="adsbygoogle"
@@ -209,9 +269,9 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
         </div>
 
         <button
-          onClick={() => setIsVisible(false)}
+          onClick={handleCloseBanner}
           className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          title="إخفاء"
+          title="إغلاق الإعلان"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -225,20 +285,18 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   if (!currentBanner) return null;
 
   // Determine current active theme (Red, Blue, Yellow)
-  // Priority: User Manual Dot click > Developer Global setting (if not auto) > Banner individual color (if not auto) > Color Cycle rotation
   let activeThemeKey: ConcreteColorTheme = COLOR_CYCLE_LIST[colorCycleIndex % COLOR_CYCLE_LIST.length];
 
-  if (userSelectedColor) {
-    activeThemeKey = userSelectedColor;
-  } else if (adsState.bannerColorTheme && adsState.bannerColorTheme !== 'auto') {
+  if (adsState.bannerColorTheme && adsState.bannerColorTheme !== 'auto') {
     activeThemeKey = adsState.bannerColorTheme as ConcreteColorTheme;
   } else if (currentBanner.colorTheme && currentBanner.colorTheme !== 'auto') {
     activeThemeKey = currentBanner.colorTheme as ConcreteColorTheme;
   }
 
   const theme = THEME_STYLES[activeThemeKey] || THEME_STYLES.red;
+  const compactLabel = getCompactButtonLabel(currentBanner);
 
-  // Check if banner has an associated video (YouTube or direct video file, always enabled for interactive video ad showcase)
+  // Check if banner has an associated video
   const hasVideo = true;
   const rawVideoUrl = currentBanner.videoUrl || (currentBanner.mediaType === 'video' ? currentBanner.imageUrl : '') || 'https://www.youtube.com/watch?v=ScMzIvxBSi4';
   const isYoutube = isYouTubeUrl(rawVideoUrl);
@@ -254,179 +312,64 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
 
   return (
     <>
-      <div 
-        onClick={handleBannerClick}
-        className={`w-full min-h-[62px] shrink-0 ${theme.containerBg} ${theme.borderColor} shadow-md relative overflow-hidden select-none transition-all duration-700 ease-in-out flex flex-col z-30 cursor-pointer border-b group`}
-        dir="rtl"
-      >
-        {/* Subtle shine animation overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3.5s_infinite] pointer-events-none" />
+      {/* 
+        CONDITIONAL RENDER: 
+        1. When isVideoExpanded is true:
+           - On Desktop: Video player (350px width, YouTube 16:9) displays horizontally BESIDE the window elements.
+           - On Mobile: Video player (350px width, YouTube 16:9) is at the top, and icon & info are shifted DOWN below it.
+        2. When isVideoExpanded is false:
+           - Compact standard 90px banner (74px on mobile) with 80x80 image and down arrow.
+      */}
+      {isVideoExpanded && hasVideo ? (
+        <div 
+          onClick={handleBannerClick}
+          className={`w-full ${theme.containerBg} ${theme.borderColor} shadow-xl relative overflow-hidden select-none border-b transition-all duration-500 z-30 cursor-pointer animate-in fade-in slide-in-from-top-2`}
+          dir="rtl"
+        >
+          {/* Subtle shine animation overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3.5s_infinite] pointer-events-none" />
 
-        {/* Main Banner Bar (Height 62px) */}
-        <div className="w-full h-[62px] px-2 sm:px-3 flex items-center justify-between gap-1.5 sm:gap-2.5">
-          
-          {/* Right Section: Standard 55x55 Square Platform Image + Title & Sponsor with Ultra-Clear Font */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Standardized 55x55 pixel platform ad image */}
-            <div className={`w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 flex items-center justify-center relative`}>
-              <img 
-                src={currentBanner.imageUrl || '/icon.svg'} 
-                alt={currentBanner.title}
-                className="w-[55px] h-[55px] object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              {hasVideo && (
-                <div className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-xs">
-                  <Play className="w-2 h-2 fill-current" />
-                </div>
-              )}
-            </div>
+          {/* DESKTOP BROWSER VIEW (md: and up): 3-Column Grid with Centered Video, 2-line Title, and CTA beside Collapse Arrow */}
+          <div className="hidden md:grid md:grid-cols-[1fr_350px_1fr] items-center px-4 pt-[3px] pb-[3px] gap-4 w-full h-[203px] min-h-[203px] max-h-[203px]">
+            
+            {/* Right: Ad Window Card (Square 197x197 Image + Title in 2 Stacked Lines) */}
+            <div className="flex items-center gap-3 min-w-0 justify-start h-[197px]">
+              {/* Scaled Square Image: 3px from top & 3px from bottom */}
+              <div className={`w-[197px] h-[197px] min-w-[197px] min-h-[197px] aspect-square rounded-2xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 shadow-xl relative`}>
+                <img 
+                  src={currentBanner.imageUrl || '/icon.svg'} 
+                  alt={currentBanner.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
 
-            {/* Title & Sponsor Info - High contrast, perfectly legible in Red, Blue, and Yellow */}
-            <div className="min-w-0 flex-1 flex flex-col justify-center">
-              <h3 className={`text-xs sm:text-sm md:text-[15px] leading-snug truncate ${theme.titleClass}`}>
-                {currentBanner.title}
-              </h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[11px] truncate ${theme.sponsorClass}`}>
-                  {currentBanner.sponsorName}
-                </span>
-                {hasVideo && (
-                  <span className={`px-1.5 py-0.2 text-[9px] font-black rounded-full border hidden xs:inline-flex items-center gap-1 ${theme.videoTag}`}>
-                    <Play className="w-2.5 h-2.5 fill-current" />
-                    <span>فيديو متاح</span>
+              {/* Title displayed in two stacked lines (صفين فوق بعض) */}
+              <div className="min-w-0 max-w-[250px] flex flex-col justify-center py-1">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="px-2 py-0.5 text-[9.5px] font-mono font-black rounded-md bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border border-yellow-300 shadow-xs">
+                    AD
                   </span>
-                )}
+                  <span className={`text-xs font-black truncate ${theme.sponsorClass}`}>
+                    {currentBanner.sponsorName}
+                  </span>
+                </div>
+                {/* العنوان في صفين فوق بعض */}
+                <h3 className={`text-sm lg:text-[15px] font-black leading-snug line-clamp-2 ${theme.titleClass}`}>
+                  {currentBanner.title}
+                </h3>
+                <span className="text-[11px] font-medium text-white/70 mt-1.5 truncate">
+                  منصة شغل وتقنية • إعلان معتمد
+                </span>
               </div>
             </div>
-          </div>
 
-          {/* Left Section: Action CTA + Color Indicator Dots + Expand Video Arrow (if video available) + Report + (AD above X) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            
-            {/* CTA Action Button: Install or Navigate (High-contrast styled per color theme) */}
-            <button
-              type="button"
-              onClick={handleBannerClick}
-              className={`${theme.ctaButton} px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer shrink-0`}
-            >
-              {currentBanner.buttonType === 'install' || currentBanner.buttonType === 'download' ? (
-                <Download className={`w-3.5 h-3.5 ${theme.ctaIconColor} stroke-[2.5]`} />
-              ) : (
-                <ExternalLink className={`w-3.5 h-3.5 ${theme.ctaIconColor} stroke-[2.5]`} />
-              )}
-              <span>{currentBanner.buttonLabel || (currentBanner.buttonType === 'install' ? 'تثبيت' : currentBanner.buttonType === 'download' ? 'تحميل' : 'انتقال')}</span>
-            </button>
-
-            {/* Video Expand / Collapse Arrow Button: When clicked, pauses banner rotation & expands video */}
-            {hasVideo && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsVideoExpanded(prev => !prev);
-                }}
-                className={`px-2 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs border ${
-                  isVideoExpanded ? theme.videoBtnActive : theme.videoBtnInactive
-                }`}
-                title={isVideoExpanded ? 'طي الفيديو وإخفاؤه للأعلى' : 'مشاهدة فيديو الإعلان بالأسفل'}
+            {/* Center: Video placed in the exact top-center of the banner (أعلى المنتصف) */}
+            <div className="flex items-center justify-center">
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="w-[350px] min-w-[350px] max-w-[350px] aspect-video h-[197px] rounded-xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative flex items-center justify-center shrink-0"
               >
-                {isVideoExpanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 stroke-[2.5] animate-bounce" />
-                    <span className="text-[10px] hidden md:inline font-black">رفع الفيديو</span>
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className={`w-4 h-4 stroke-[2.5] ${theme.videoArrowIcon} animate-bounce`} />
-                    <span className="text-[10px] hidden md:inline font-black">تنزيل الفيديو</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Subtle Color Switcher Dots (Red, Blue, Yellow) - Shows color alternation & allows instant manual switch */}
-            <div 
-              onClick={(e) => e.stopPropagation()}
-              className="hidden lg:flex items-center gap-1 bg-black/20 backdrop-blur-xs px-1.5 py-1 rounded-full border border-white/20"
-              title="تغيير لون خلفية البنر (أحمر، أزرق، أصفر)"
-            >
-              <button
-                type="button"
-                onClick={() => setUserSelectedColor('red')}
-                className={`w-2.5 h-2.5 rounded-full transition-transform cursor-pointer ${
-                  activeThemeKey === 'red' ? 'bg-red-500 ring-2 ring-white scale-125' : 'bg-red-400/60 hover:bg-red-400'
-                }`}
-                title="اللون الأحمر الملكي"
-              />
-              <button
-                type="button"
-                onClick={() => setUserSelectedColor('blue')}
-                className={`w-2.5 h-2.5 rounded-full transition-transform cursor-pointer ${
-                  activeThemeKey === 'blue' ? 'bg-blue-500 ring-2 ring-white scale-125' : 'bg-blue-400/60 hover:bg-blue-400'
-                }`}
-                title="اللون الأزرق التقني"
-              />
-              <button
-                type="button"
-                onClick={() => setUserSelectedColor('yellow')}
-                className={`w-2.5 h-2.5 rounded-full transition-transform cursor-pointer ${
-                  activeThemeKey === 'yellow' ? 'bg-yellow-400 ring-2 ring-slate-900 scale-125' : 'bg-yellow-400/60 hover:bg-yellow-400'
-                }`}
-                title="اللون الأصفر الذهبي عالي الوضوح"
-              />
-            </div>
-
-            {/* Report Button on Ad Window (زر إبلاغ صغير) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsReportOpen(true);
-              }}
-              className={`px-1.5 sm:px-2 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0 border ${theme.reportBtn}`}
-              title="إبلاغ الدعم عن هذا الإعلان"
-            >
-              <ShieldAlert className={`w-3 h-3 ${theme.reportIcon}`} />
-              <span className="hidden lg:inline">إبلاغ</span>
-            </button>
-
-            {/* Dedicated Vertical Column: Always Distinctive Yellow Framed AD Badge ON TOP, Close (X) button SHIFTED DOWN */}
-            <div className={`flex flex-col items-center justify-between h-[52px] py-0.5 shrink-0 pl-0.5 pr-0.5 border-r ${theme.divider} mr-0.5`}>
-              {/* Distinctive Yellow Framed AD Badge */}
-              <span className="px-2 py-0.5 text-[9.5px] rounded-md font-mono font-black shadow-[0_0_10px_rgba(250,204,21,0.6)] tracking-wider leading-none select-none text-center bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border-2 border-yellow-300">
-                AD
-              </span>
-
-              {/* Close (X) button shifted down slightly */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsVisible(false);
-                }}
-                className={`p-1 rounded-md transition-all cursor-pointer mt-1 ${theme.closeBtn}`}
-                title="إخفاء الإعلان مؤقتاً"
-              >
-                <X className="w-3.5 h-3.5 stroke-[2.5]" />
-              </button>
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* Embedded Interactive Video Drawer (Opens when user clicks down-arrow, rotation pauses, supports YouTube & MP4) */}
-        {isVideoExpanded && hasVideo && (
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="w-full bg-slate-950 border-t-2 border-amber-400/60 p-2.5 sm:p-4 relative overflow-hidden transition-all duration-300 shadow-2xl animate-in slide-in-from-top-2"
-          >
-            {/* Video Player in standard YouTube 16:9 widescreen ratio in the open space */}
-            <div className="w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border-2 border-slate-800 bg-black relative shadow-2xl group/player aspect-video flex items-center justify-center">
-              
-              {/* Media Player: YouTube Iframe or HTML5 Video (both standard 16:9 YouTube aspect ratio) */}
-              {isYoutube ? (
-                <div className="w-full h-full relative aspect-video bg-black flex items-center justify-center">
+                {isYoutube ? (
                   <iframe
                     src={resolvedYouTubeEmbed}
                     title={currentBanner.title}
@@ -434,7 +377,117 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
                     allowFullScreen
                     className="w-full h-full border-0"
                   />
-                </div>
+                ) : (
+                  <div className="relative w-full h-full aspect-video flex items-center justify-center bg-black">
+                    <video
+                      ref={videoRef}
+                      src={rawVideoUrl}
+                      autoPlay
+                      playsInline
+                      muted={isMuted}
+                      loop
+                      className="w-full h-full object-contain mx-auto bg-black"
+                    />
+                    <div className="absolute top-2 left-2 z-30">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMuted(prev => !prev);
+                        }}
+                        className={`p-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
+                          isMuted 
+                            ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400' 
+                            : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white'
+                        }`}
+                        title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
+                      >
+                        {isMuted ? <VolumeX className="w-4 h-4 stroke-[2]" /> : <Volume2 className="w-4 h-4 stroke-[2]" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Left: Actions (Download Button placed beside the collapse arrow, Report, AD badge, Close X) */}
+            <div className="flex items-center justify-end gap-3 h-[197px]">
+              {/* زر التحميل بجانب السهم الذي يغلق/يطوي الإعلان */}
+              <button
+                type="button"
+                onClick={handleBannerClick}
+                className={`${theme.ctaButton} px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-md font-black shrink-0`}
+                title={compactLabel}
+              >
+                {currentBanner.buttonType === 'install' || currentBanner.buttonType === 'download' ? (
+                  <Download className={`w-4 h-4 ${theme.ctaIconColor} stroke-[2.5]`} />
+                ) : (
+                  <ExternalLink className={`w-4 h-4 ${theme.ctaIconColor} stroke-[2.5]`} />
+                )}
+                <span className="font-black whitespace-nowrap">{compactLabel}</span>
+              </button>
+
+              {/* عمود: علامة الإبلاغ في الأعلى وأسفلها سهم رفع وطَي الفيديو */}
+              <div className="flex flex-col items-center justify-between h-[120px] py-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsReportOpen(true);
+                  }}
+                  className={`p-1.5 rounded-xl text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer border ${theme.reportBtn} shadow-xs`}
+                  title="إبلاغ الدعم الفني عن هذا الإعلان"
+                >
+                  <ShieldAlert className={`w-4 h-4 ${theme.reportIcon}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsVideoExpanded(false);
+                  }}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer border shadow-md ${theme.videoBtnActive}`}
+                  title="رفع الفيديو وإخفاؤه للأعلى"
+                >
+                  <ChevronUp className="w-5 h-5 stroke-[2.5]" />
+                </button>
+              </div>
+
+              {/* عمود: شارة AD في الأعلى وأسفلها زر إغلاق الإعلان X */}
+              <div className={`flex flex-col items-center justify-between h-[120px] py-1 border-r ${theme.divider} pr-2`}>
+                <span className="px-2 py-1 text-[10px] rounded-lg font-mono font-black shadow-[0_0_8px_rgba(250,204,21,0.6)] tracking-wider leading-none select-none text-center bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border border-yellow-300">
+                  AD
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCloseBanner}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${theme.closeBtn}`}
+                  title="إغلاق الإعلان"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* MOBILE VIEW (<md): Video 350px at TOP, and Icon / Window shifted DOWN */}
+          <div className="md:hidden flex flex-col items-center w-full p-2 gap-2">
+            
+            {/* Top: 350px YouTube Video Player from right to left */}
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="w-[350px] max-w-[350px] aspect-video rounded-xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative flex items-center justify-center mx-auto shrink-0"
+            >
+              {isYoutube ? (
+                <iframe
+                  src={resolvedYouTubeEmbed}
+                  title={currentBanner.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                />
               ) : (
                 <div className="relative w-full h-full aspect-video flex items-center justify-center bg-black">
                   <video
@@ -446,100 +499,333 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
                     loop
                     className="w-full h-full object-contain mx-auto bg-black"
                   />
-
-                  {/* Icon-Only Mute Button (أيقونة كتم الصوت فقط بدون أي نص بجانب الزر) */}
-                  <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
+                  <div className="absolute top-2 left-2 z-30">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsMuted(prev => !prev);
                       }}
-                      className={`p-2.5 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-xl ${
+                      className={`p-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
                         isMuted 
-                          ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.4)]' 
-                          : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                          ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400' 
+                          : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white'
                       }`}
                       title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                      aria-label={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
                     >
-                      {isMuted ? (
-                        <VolumeX className="w-5 h-5 stroke-[2.5]" />
-                      ) : (
-                        <Volume2 className="w-5 h-5 stroke-[2.5]" />
-                      )}
+                      {isMuted ? <VolumeX className="w-3.5 h-3.5 stroke-[2]" /> : <Volume2 className="w-3.5 h-3.5 stroke-[2]" />}
                     </button>
                   </div>
                 </div>
               )}
-
             </div>
 
-            {/* Bottom Bar: Replaces the removed sentence.
-                Contains:
-                1. نافذة اسم وعنوان التطبيق بجانب زر التحميل
-                2. نافذة زر تحميل التطبيق
-                3. سهم زر الرفع (سهم الرفع لرفع وطَي الفيديو للأعلى) بجانب زر التحميل */}
-            <div className="mt-3 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 bg-slate-900/95 border-2 border-slate-800 hover:border-amber-400/40 rounded-2xl p-2.5 sm:p-3.5 shadow-2xl backdrop-blur-md transition-all">
+            {/* Bottom Bar: Icon and Window Info shifted DOWN below the 350px video */}
+            <div className="w-full max-w-[350px] flex items-center justify-between gap-1.5 px-0.5">
               
-              {/* 1. نافذة اسم وعنوان التطبيق والراعي مع الشعار المعياري 55x55 وشارة AD الصفراء */}
-              <div className="flex items-center gap-3 min-w-0 flex-1 w-full md:w-auto bg-slate-950/80 border border-slate-800/80 rounded-xl p-2 sm:px-3">
-                <div className="w-[50px] h-[50px] min-w-[50px] min-h-[50px] sm:w-[55px] sm:h-[55px] sm:min-w-[55px] sm:min-h-[55px] rounded-xl overflow-hidden border-2 border-yellow-400/90 shadow-md bg-black shrink-0 flex items-center justify-center">
+              {/* Right: Ad icon (shifted down) + Title & Sponsor */}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className={`w-[48px] h-[48px] min-w-[48px] min-h-[48px] rounded-lg overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 shadow-sm relative`}>
                   <img 
                     src={currentBanner.imageUrl || '/icon.svg'} 
                     alt={currentBanner.title}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="min-w-0 flex-1 text-right">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    {/* Distinctive Yellow Framed AD Badge */}
-                    <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 font-black text-[9.5px] px-2 py-0.5 rounded border border-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.5)] font-mono tracking-wider">
-                      AD
-                    </span>
-                    <span className="text-[11px] font-black text-amber-300 truncate">
-                      {currentBanner.sponsorName || 'منصة شغل وتقنية'}
-                    </span>
-                  </div>
-                  <h4 className="text-xs sm:text-sm font-black text-white leading-tight truncate">
+                <div className="min-w-0 flex-1">
+                  <h4 className={`text-xs font-black leading-tight truncate ${theme.titleClass}`}>
                     {currentBanner.title}
                   </h4>
+                  <span className={`text-[10px] truncate block ${theme.sponsorClass}`}>
+                    {currentBanner.sponsorName}
+                  </span>
                 </div>
               </div>
 
-              {/* 2 & 3. أزرار الإجراءات: زر تحميل التطبيق + سهم زر الرفع بجانبه مباشرة */}
-              <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 w-full md:w-auto justify-end">
-                {/* 2. نافذة وزر تحميل التطبيق */}
+              {/* Left: Actions */}
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
                   onClick={handleBannerClick}
-                  className="flex-1 md:flex-initial px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 cursor-pointer active:scale-95 transition-all border border-white/20"
-                  title="تحميل التطبيق الآن"
+                  className={`${theme.ctaButton} px-2 py-1 rounded-lg text-[10.5px] font-black flex items-center gap-1 shadow-sm shrink-0`}
+                  title={compactLabel}
                 >
-                  <Download className="w-4 h-4 stroke-[2.5]" />
-                  <span>{currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل التطبيق' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'تحميل التطبيق')}</span>
+                  <Download className="w-3 h-3 stroke-[2.5]" />
+                  <span>{compactLabel}</span>
                 </button>
 
-                {/* 3. سهم زر الرفع (سهم الرفع لرفع الفيديو وطيه للأعلى) */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsVideoExpanded(false);
-                  }}
-                  className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-yellow-300 hover:text-white border-2 border-yellow-400/60 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-black/40 cursor-pointer transition-all active:scale-95 group shrink-0"
-                  title="سهم رفع الفيديو للأعلى"
-                >
-                  <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 stroke-[3] group-hover:-translate-y-0.5 transition-transform" />
-                  <span className="font-black">رفع الفيديو</span>
-                </button>
+                {/* عمود: الإبلاغ وسهم رفع الفيديو */}
+                <div className="flex flex-col items-center justify-between h-[52px] py-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsReportOpen(true);
+                    }}
+                    className={`p-1 rounded-md text-[9px] font-bold flex items-center justify-center border ${theme.reportBtn}`}
+                    title="إبلاغ"
+                  >
+                    <ShieldAlert className={`w-3 h-3 ${theme.reportIcon}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsVideoExpanded(false);
+                    }}
+                    className={`w-6 h-6 rounded-md flex items-center justify-center border shadow-xs ${theme.videoBtnActive}`}
+                    title="رفع الفيديو للأعلى"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </div>
+
+                {/* عمود: شارة AD وزر الإغلاق */}
+                <div className={`flex flex-col items-center justify-between h-[52px] py-0.5 border-r ${theme.divider} pr-1`}>
+                  <span className="px-1 py-0.2 text-[8.5px] rounded font-mono font-black shadow-[0_0_6px_rgba(250,204,21,0.6)] leading-none text-center bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border border-yellow-300">
+                    AD
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCloseBanner}
+                    className={`p-0.5 rounded transition-all cursor-pointer ${theme.closeBtn}`}
+                    title="إغلاق الإعلان"
+                  >
+                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </div>
               </div>
 
             </div>
 
           </div>
-        )}
-      </div>
+
+        </div>
+      ) : (
+        /* STANDARD COLLAPSED BANNER BAR: 90px in Desktop / Browser (74px on Phone) */
+        <div 
+          onClick={handleBannerClick}
+          className={`w-full min-h-[74px] sm:min-h-[90px] shrink-0 ${theme.containerBg} ${theme.borderColor} shadow-md relative overflow-hidden select-none transition-all duration-700 ease-in-out flex flex-col z-30 cursor-pointer border-b group animate-in fade-in slide-in-from-top-2 duration-500`}
+          dir="rtl"
+        >
+          {/* Subtle shine animation overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3.5s_infinite] pointer-events-none" />
+
+          {/* EXACT HORIZONTAL CENTER IN BROWSER/DESKTOP: "شاهد الآن" Button (في منتصف إعلان البانر بالضبط وبحجم أكبر لكي تلفت الانتباه) */}
+          {hasVideo && (
+            <div className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsVideoExpanded(true);
+                }}
+                className="flex items-center gap-2.5 px-6 py-2.5 sm:px-7 sm:py-3 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-black text-sm lg:text-[15px] shadow-xl shadow-red-600/40 border-2 border-yellow-300 hover:scale-105 active:scale-95 transition-all cursor-pointer animate-pulse"
+                title="شاهد الفيديو الآن مباشرة"
+              >
+                <span className="w-6 h-6 rounded-full bg-white/25 flex items-center justify-center shrink-0 shadow-inner">
+                  <Play className="w-3.5 h-3.5 fill-current text-white mr-0.5" />
+                </span>
+                <span className="whitespace-nowrap font-black tracking-wide">
+                  شاهد الآن
+                </span>
+                <ChevronDown className="w-5 h-5 stroke-[3] text-amber-200" />
+              </button>
+            </div>
+          )}
+
+          {/* MOBILE VIEW (<sm): 
+              Right: 58x58 Square Image
+              Center: Title on top (extending freely over download button) + Download button & Sponsor below it
+              Left: (Report on top & Video Arrow below) + (AD on top & Close below)
+          */}
+          <div className="sm:hidden w-full h-[76px] px-2 flex items-center justify-between gap-2 relative z-10">
+            {/* Right: 58x58 Square Image */}
+            <div className={`w-[56px] h-[56px] min-w-[56px] min-h-[56px] rounded-xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 flex items-center justify-center relative shadow-md self-center`}>
+              <img 
+                src={currentBanner.imageUrl || '/icon.svg'} 
+                alt={currentBanner.title}
+                className="w-full h-full object-cover"
+              />
+              {hasVideo && (
+                <div className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-red-600/95 text-white flex items-center justify-center shadow-xs">
+                  <Play className="w-1.5 h-1.5 fill-current" />
+                </div>
+              )}
+            </div>
+
+            {/* Middle: Title extending naturally ABOVE the download button, with remaining title below it without harsh truncation */}
+            <div className="min-w-0 flex-1 flex flex-col justify-between py-1 h-full">
+              {/* العنوان يظهر فوق كلمة تحميل لكي يكون واضحاً بشكل كامل مع امتداد طبيعي */}
+              <h3 className={`text-[11.5px] font-black leading-tight line-clamp-2 ${theme.titleClass}`}>
+                {currentBanner.title}
+              </h3>
+
+              {/* أسفل العنوان: زر التحميل وبجانبه اسم المعلن */}
+              <div className="flex items-center gap-1.5 mt-auto pt-0.5">
+                <button
+                  type="button"
+                  onClick={handleBannerClick}
+                  className={`${theme.ctaButton} px-2.5 py-1 rounded-lg text-[10.5px] flex items-center gap-1 transition-all active:scale-95 cursor-pointer shrink-0 shadow-xs font-black`}
+                  title={compactLabel}
+                >
+                  {currentBanner.buttonType === 'install' || currentBanner.buttonType === 'download' ? (
+                    <Download className={`w-3 h-3 ${theme.ctaIconColor} stroke-[2.5]`} />
+                  ) : (
+                    <ExternalLink className={`w-3 h-3 ${theme.ctaIconColor} stroke-[2.5]`} />
+                  )}
+                  <span className="font-black whitespace-nowrap">{compactLabel}</span>
+                </button>
+
+                <span className={`text-[9.5px] font-bold truncate ${theme.sponsorClass}`}>
+                  {currentBanner.sponsorName}
+                </span>
+              </div>
+            </div>
+
+            {/* Left Controls: Column 1 (Report on top, Arrow below) & Column 2 (AD on top, Close below) */}
+            <div className="flex items-center gap-1.5 shrink-0 h-full">
+              {/* عمود: زر الإبلاغ في الأعلى وأسفله سهم تشغيل الفيديو */}
+              <div className="flex flex-col items-center justify-between h-[66px] py-0.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsReportOpen(true);
+                  }}
+                  className={`p-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer border ${theme.reportBtn} shadow-xs`}
+                  title="إبلاغ الدعم الفني عن هذا الإعلان"
+                >
+                  <ShieldAlert className={`w-3.5 h-3.5 ${theme.reportIcon}`} />
+                </button>
+
+                {hasVideo ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsVideoExpanded(true);
+                    }}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer border shadow-xs ${theme.videoBtnInactive}`}
+                    title="شاهد الفيديو الآن"
+                  >
+                    <ChevronDown className={`w-4 h-4 stroke-[2.5] ${theme.videoArrowIcon}`} />
+                  </button>
+                ) : (
+                  <div className="w-7 h-7" />
+                )}
+              </div>
+
+              {/* عمود: شارة AD في الأعلى وأسفلها زر إغلاق الإعلان X */}
+              <div className={`flex flex-col items-center justify-between h-[66px] py-0.5 border-r ${theme.divider} pr-1.5`}>
+                <span className="px-1.5 py-0.5 text-[8.5px] rounded-md font-mono font-black shadow-[0_0_8px_rgba(250,204,21,0.6)] tracking-wider leading-none select-none text-center bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border border-yellow-300">
+                  AD
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCloseBanner}
+                  className={`p-1 rounded-lg transition-all cursor-pointer ${theme.closeBtn}`}
+                  title="إغلاق الإعلان (سيظهر إعلان بديل بعد 3 ثوانٍ)"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP VIEW (sm: and up): 
+              Right: 78x78 Square Image + Title & Sponsor
+              Center: "شاهد الآن" (prominent and centered)
+              Left: Large Download button + Report + AD + Close
+          */}
+          <div className="hidden sm:flex w-full h-[90px] px-4 items-center justify-between gap-4 relative z-10">
+            {/* Right Section: 78x78 Square Image + Title & Sponsor */}
+            <div className="flex items-center gap-3.5 min-w-0 max-w-[42%] lg:max-w-[45%] h-full py-1">
+              <div className={`w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded-xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 flex items-center justify-center relative shadow-md self-center`}>
+                <img 
+                  src={currentBanner.imageUrl || '/icon.svg'} 
+                  alt={currentBanner.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {hasVideo && (
+                  <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-red-600/95 text-white flex items-center justify-center shadow-xs">
+                    <Play className="w-2 h-2 fill-current" />
+                  </div>
+                )}
+              </div>
+
+              {/* Title & Sponsor Info */}
+              <div className="min-w-0 flex-1 flex flex-col justify-start pt-2 h-full">
+                <h3 className={`text-base lg:text-[17px] font-black leading-tight line-clamp-1 ${theme.titleClass}`}>
+                  {currentBanner.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`text-[13px] font-bold truncate ${theme.sponsorClass}`}>
+                    {currentBanner.sponsorName}
+                  </span>
+                  {hasVideo && (
+                    <span className="px-2 py-0.5 text-[9.5px] font-black rounded-md bg-red-600 text-white shadow-xs inline-flex items-center gap-1">
+                      <Play className="w-2.5 h-2.5 fill-current" />
+                      <span>فيديو متاح</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Left / Actions Section */}
+            <div className="flex items-center gap-3 shrink-0 h-full">
+              {/* زر تثبيت/تحميل التطبيق بحجم كبير مماثل لزر شاهد الآن ونازل للأسفل قليلاً */}
+              <div className="flex items-end h-full pb-2">
+                <button
+                  type="button"
+                  onClick={handleBannerClick}
+                  className={`${theme.ctaButton} px-6 py-3 rounded-2xl text-sm lg:text-[14px] flex items-center gap-2.5 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shrink-0 shadow-lg font-black`}
+                  title={compactLabel}
+                >
+                  {currentBanner.buttonType === 'install' || currentBanner.buttonType === 'download' ? (
+                    <Download className={`w-5 h-5 ${theme.ctaIconColor} stroke-[2.5]`} />
+                  ) : (
+                    <ExternalLink className={`w-5 h-5 ${theme.ctaIconColor} stroke-[2.5]`} />
+                  )}
+                  <span className="font-black whitespace-nowrap">{compactLabel}</span>
+                </button>
+              </div>
+
+              {/* زر الإبلاغ */}
+              <div className="flex items-center">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsReportOpen(true);
+                  }}
+                  className={`p-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer border ${theme.reportBtn} shadow-xs`}
+                  title="إبلاغ الدعم الفني عن هذا الإعلان"
+                >
+                  <ShieldAlert className={`w-4 h-4 ${theme.reportIcon}`} />
+                </button>
+              </div>
+
+              {/* عمود: شارة AD في الأعلى وأسفلها زر إغلاق الإعلان X */}
+              <div className={`flex flex-col items-center justify-between h-[76px] py-1 border-r ${theme.divider} pr-2.5`}>
+                <span className="px-2 py-0.5 text-[10px] rounded-md font-mono font-black shadow-[0_0_8px_rgba(250,204,21,0.6)] tracking-wider leading-none select-none text-center bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 border border-yellow-300">
+                  AD
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCloseBanner}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${theme.closeBtn}`}
+                  title="إغلاق الإعلان (سيظهر إعلان بديل بعد 3 ثوانٍ)"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ad Report Reason Modal */}
       <AdReportModal
@@ -552,5 +838,3 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
     </>
   );
 };
-
-

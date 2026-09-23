@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { X, Bell, Briefcase, Heart, MessageCircle, Check, Sparkles, ArrowRight, Headphones, ChevronLeft, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Bell, Briefcase, Heart, MessageCircle, Check, Sparkles, ArrowRight, Headphones, ChevronLeft, ShieldCheck, Zap } from 'lucide-react';
 import { ActiveNavTab } from '../types';
 import { BottomNav } from './BottomNav';
 import { TopBannerAd } from './TopBannerAd';
 import { NotificationItem } from '../types';
 import { DirectSupportModal } from './DirectSupportModal';
+import { initializeFCM } from '../firebase/messaging';
 
 interface NotificationsModalProps {
   isOpen: boolean;
@@ -36,6 +37,30 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   currentUserName = ''
 }) => {
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
+  const [isActivatingPush, setIsActivatingPush] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushStatus(Notification.permission);
+    }
+  }, [isOpen]);
+
+  const handleEnablePush = async () => {
+    setIsActivatingPush(true);
+    try {
+      const token = await initializeFCM();
+      if (token) {
+        setPushStatus('granted');
+      } else if (typeof window !== 'undefined' && 'Notification' in window) {
+        setPushStatus(Notification.permission);
+      }
+    } catch (err) {
+      console.warn('Error enabling push:', err);
+    } finally {
+      setIsActivatingPush(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -123,6 +148,47 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Web Push (FCM) Integration Banner with VAPID Key */}
+          <div className="px-3 py-2 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200/80 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 fill-amber-500 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-black text-slate-900">إشعارات الويب المباشرة (FCM)</span>
+                  {pushStatus === 'granted' ? (
+                    <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.2 rounded font-black border border-emerald-300 flex items-center gap-0.5">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      <span>نشطة ومفعلة</span>
+                    </span>
+                  ) : (
+                    <span className="bg-amber-100 text-amber-900 text-[9px] px-1.5 py-0.2 rounded font-black border border-amber-300">
+                      بانتظار الإذن
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-600 truncate">
+                  {pushStatus === 'granted' 
+                    ? 'جهازك متصل بخدمة Firebase Cloud Messaging لاستقبال التنبيهات الفورية'
+                    : 'فعّل الإشعارات لتصلك تحديثات الوظائف والرسائل مباشرة على هاتفك ومتصفحك'}
+                </p>
+              </div>
+            </div>
+
+            {pushStatus !== 'granted' && (
+              <button
+                type="button"
+                onClick={handleEnablePush}
+                disabled={isActivatingPush}
+                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black text-[11px] flex items-center gap-1 shadow-sm shrink-0 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Bell className="w-3 h-3 stroke-[2.5]" />
+                <span>{isActivatingPush ? 'جاري التفعيل...' : 'تفعيل الإشعارات'}</span>
+              </button>
+            )}
           </div>
 
           {/* Notifications List */}

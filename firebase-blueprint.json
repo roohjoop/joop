@@ -86,6 +86,19 @@
         "createdAt": { "type": "string", "maxLength": 60 }
       },
       "required": ["id", "adId", "reason"]
+    },
+    "FcmToken": {
+      "title": "FcmToken",
+      "description": "Firebase Cloud Messaging Web Push device tokens",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "platform": { "type": "string", "maxLength": 40 },
+        "userAgent": { "type": "string", "maxLength": 300 }
+      },
+      "required": ["token"]
     }
   },
   "firestore": {
@@ -108,6 +121,10 @@
     "/ad_reports/{reportId}": {
       "schema": "AdReport",
       "description": "User reports for ads"
+    },
+    "/fcmTokens/{tokenId}": {
+      "schema": "FcmToken",
+      "description": "FCM device registration tokens for web push notifications"
     }
   }
 }

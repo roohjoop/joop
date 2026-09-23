@@ -189,7 +189,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
               type="button"
               onClick={handleCopyPolicyUrl}
               className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center gap-1 text-[10px] font-bold transition-all cursor-pointer"
-              title="نسخ رابط السياسة المعتمد للأرشفة في جوجل"
+              title="نسخ رابط السياسة المعتمد"
             >
               {copiedPolicyUrl ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{copiedPolicyUrl ? 'تم النسخ!' : 'رابط السياسة'}</span>
@@ -204,22 +204,6 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
-
-        {/* Dedicated URL Bar for Google indexing notice */}
-        <div className="bg-slate-900 px-3 py-1.5 text-white/90 flex items-center justify-between gap-2 text-[10.5px] border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-blue-400 font-black shrink-0">المسار المعتمد:</span>
-            <span className="font-mono text-[10px] text-slate-300 truncate dir-ltr">
-              roohpro.com/jop/privacy
-            </span>
-          </div>
-          <button
-            onClick={handleCopyPolicyUrl}
-            className="text-[10px] font-bold text-amber-300 hover:text-amber-200 underline shrink-0 cursor-pointer"
-          >
-            {copiedPolicyUrl ? '✓ تم النسخ' : 'نسخ للأرشفة'}
-          </button>
         </div>
 
         {/* 2. Navigation Tabs (مقتصرة على: البنود والسياسات، من نحن، جيميناوي) */}
