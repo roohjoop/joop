@@ -191,7 +191,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
       </div>
 
       {/* 3. Internal Content Container - Rich, prominent, filling the window cleanly */}
-      <div className="relative z-10 flex-1 px-3.5 py-2 flex flex-col justify-between overflow-hidden gap-2">
+      <div className="relative z-10 flex-1 min-h-0 px-2.5 sm:px-3.5 py-1.5 sm:py-2 flex flex-col justify-between overflow-hidden gap-1.5 sm:gap-2">
         
         {/* Attractive Brand Badge Window inside the Reel Card ("داخل النافذة المتحركة نافذة بها العلامة بشكل جذاب") */}
         <div className="flex items-center justify-between gap-2 shrink-0">
@@ -287,48 +287,48 @@ export const ReelCard: React.FC<ReelCardProps> = ({
         {/* SECTION B: Central Job Card Details */}
         <div 
           onClick={() => onOpenAdvertiserProfile(post)}
-          className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between flex-1 overflow-hidden cursor-pointer hover:border-blue-300 transition-colors"
+          className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-2xl p-2.5 sm:p-3.5 shadow-sm flex flex-col justify-between flex-1 min-h-0 overflow-y-auto no-scrollbar cursor-pointer hover:border-blue-300 transition-colors"
         >
           {/* Top Title & Category */}
-          <div className="space-y-1.5">
+          <div className="space-y-1 sm:space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60 inline-flex items-center gap-1">
+              <span className="text-[10px] sm:text-[11px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/60 inline-flex items-center gap-1">
                 <Briefcase className="w-3 h-3 text-blue-600" />
                 {post.category}
               </span>
               {post.workType && (
-                <span className="text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg">
+                <span className="text-[9.5px] sm:text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg">
                   {post.workType}
                 </span>
               )}
             </div>
 
-            <h2 className="text-sm sm:text-base font-black text-slate-900 leading-snug line-clamp-2">
+            <h2 className="text-xs sm:text-base font-black text-slate-900 leading-snug line-clamp-2">
               {post.title}
             </h2>
           </div>
 
           {/* Core Info Grid: Salary, Location */}
-          <div className="grid grid-cols-2 gap-2 my-2 py-2 border-y border-slate-100">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 my-1 sm:my-2 py-1 sm:py-2 border-y border-slate-100">
             {/* Salary */}
-            <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                <DollarSign className="w-4 h-4 stroke-[2.5]" />
+            <div className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] text-slate-500 font-bold">الراتب / المقابل</p>
-                <p className="text-xs font-black text-emerald-800 truncate">{post.salary}</p>
+                <p className="text-[8.5px] sm:text-[9px] text-slate-500 font-bold">الراتب / المقابل</p>
+                <p className="text-[11px] sm:text-xs font-black text-emerald-800 truncate">{post.salary}</p>
               </div>
             </div>
 
             {/* Location & Country */}
-            <div className="flex items-center gap-2 p-1.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="w-7 h-7 rounded-lg bg-red-100 text-red-700 flex items-center justify-center shrink-0 text-sm">
+            <div className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-red-100 text-red-700 flex items-center justify-center shrink-0 text-xs sm:text-sm">
                 {displayCountryFlag}
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] text-slate-500 font-bold">الموقع والدولة</p>
-                <p className="text-xs font-black text-slate-900 truncate">
+                <p className="text-[8.5px] sm:text-[9px] text-slate-500 font-bold">الموقع والدولة</p>
+                <p className="text-[11px] sm:text-xs font-black text-slate-900 truncate">
                   {post.location || post.country || 'مصر'}
                 </p>
               </div>
@@ -336,8 +336,8 @@ export const ReelCard: React.FC<ReelCardProps> = ({
           </div>
 
           {/* Description Excerpt & Tags */}
-          <div className="space-y-1.5">
-            <p className="text-xs text-slate-600 font-medium line-clamp-2 leading-relaxed">
+          <div className="space-y-1 sm:space-y-1.5">
+            <p className="text-[11px] sm:text-xs text-slate-600 font-medium line-clamp-2 leading-relaxed">
               {post.description}
             </p>
 
@@ -345,7 +345,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
             {post.tags && post.tags.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap pt-1 border-t border-slate-100">
                 {post.tags.map((tag, idx) => (
-                  <span key={idx} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                  <span key={idx} className="text-[9.5px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
                     #{tag}
                   </span>
                 ))}
@@ -356,17 +356,17 @@ export const ReelCard: React.FC<ReelCardProps> = ({
         </div>
 
         {/* SECTION C: UNIFIED BOTTOM ACTION BAR INSIDE THE WINDOW */}
-        <div className="pt-2 pb-0.5 border-t border-slate-200/90 flex flex-col gap-1.5 shrink-0">
+        <div className="pt-1.5 sm:pt-2 pb-0.5 border-t border-slate-200/90 flex flex-col gap-1 sm:gap-1.5 shrink-0 z-10">
           
           {/* Row 1: WhatsApp button + Details button with matching balanced sizes + Download Button beside them */}
-          <div className="flex items-center gap-2 w-full shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full shrink-0">
             {/* Direct WhatsApp Button (Balanced Size) */}
             <button
               onClick={openWhatsApp}
-              className="flex-1 bg-gradient-to-r from-[#25D366] to-[#1EBE5D] hover:from-[#20ba5a] hover:to-[#19a550] text-white font-black py-2 px-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-98 transition-all shrink-0 cursor-pointer min-w-0"
+              className="flex-1 bg-gradient-to-r from-[#25D366] to-[#1EBE5D] hover:from-[#20ba5a] hover:to-[#19a550] text-white font-black py-1.5 sm:py-2 px-2 sm:px-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-98 transition-all shrink-0 cursor-pointer min-w-0"
               title="مراسلة واتساب فورية مباشرة"
             >
-              <WhatsAppLogo className="w-4 h-4 fill-white shrink-0" />
+              <WhatsAppLogo className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white shrink-0" />
               <span className="truncate">مراسلة واتساب</span>
             </button>
 
@@ -376,35 +376,31 @@ export const ReelCard: React.FC<ReelCardProps> = ({
                 e.stopPropagation();
                 onOpenAdvertiserProfile(post);
               }}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-2 px-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all shrink-0 cursor-pointer border border-blue-700 min-w-0"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-1.5 sm:py-2 px-2 sm:px-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all shrink-0 cursor-pointer border border-blue-700 min-w-0"
               title="عرض التفاصيل الكاملة ورقم الهاتف والعنوان"
             >
-              <Info className="w-4 h-4 shrink-0" />
+              <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="truncate">التفاصيل</span>
             </button>
 
-            {/* Download / Install App Button:
-                "وايضا اجعل زر التحميل يكون بشكل جذاب وبدون كلمه تحميل فقط يكون زر معبر عن التحمل
-                 يرجى العلم ان زر التحميل سيكون مكان زر التفاصيل وجعل زر التفاصيل وزير الوتساب يكون بنفس حجم زر التفاصيل
-                 لكي يتم اضافه زر التحميل بجانبهم بشكل احترافي"
-            */}
+            {/* Download / Install App Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 if (onInstallApp) onInstallApp();
               }}
-              className="w-10 h-9 sm:w-11 sm:h-9.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white flex items-center justify-center shadow-md shadow-red-500/25 active:scale-90 transition-all shrink-0 cursor-pointer group/dl border border-red-500 relative"
+              className="w-9 h-8 sm:w-11 sm:h-9.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white flex items-center justify-center shadow-md shadow-red-500/25 active:scale-90 transition-all shrink-0 cursor-pointer group/dl border border-red-500 relative"
               title="تثبيت التطبيق على هاتفك أو سطح المكتب مباشرة"
               aria-label="تثبيت التطبيق"
             >
-              <Download className="w-4 h-4 stroke-[2.5] group-hover/dl:translate-y-0.5 transition-transform" />
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5] group-hover/dl:translate-y-0.5 transition-transform" />
               {/* Subtle sparkle indicator */}
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full border-2 border-white animate-pulse" />
             </button>
           </div>
 
           {/* Row 2: Engagement Buttons Row (Like, Comment, Save, Report) */}
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
             
             {/* 1. Like Button with Count */}
             <button
@@ -412,7 +408,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
                 e.stopPropagation();
                 onLike(post.id);
               }}
-              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all border ${
+              className={`py-1 sm:py-1.5 px-1.5 sm:px-2 rounded-xl flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold transition-all border ${
                 post.isLiked
                   ? 'bg-red-50 text-red-600 border-red-300 shadow-xs'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -420,7 +416,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
               title={post.isLiked ? 'إلغاء الإعجاب' : 'إعجاب'}
             >
               <Heart className={`w-3.5 h-3.5 ${post.isLiked ? 'fill-red-600 text-red-600 scale-110' : 'text-slate-500'}`} />
-              <span className="font-black text-xs">{post.likesCount}</span>
+              <span className="font-black">{post.likesCount}</span>
             </button>
 
             {/* 2. Comments / Inquiries Button with Count */}
@@ -429,11 +425,11 @@ export const ReelCard: React.FC<ReelCardProps> = ({
                 e.stopPropagation();
                 onOpenComments(post);
               }}
-              className="py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 flex items-center justify-center gap-1 text-xs font-bold transition-all shadow-xs"
+              className="py-1 sm:py-1.5 px-1.5 sm:px-2 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold transition-all shadow-xs"
               title="الاستفسارات والتعليقات"
             >
               <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
-              <span className="font-black text-xs">{post.commentsCount}</span>
+              <span className="font-black">{post.commentsCount}</span>
             </button>
 
             {/* 3. Save / Bookmark Button */}
@@ -442,7 +438,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
                 e.stopPropagation();
                 onBookmark(post.id);
               }}
-              className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all border ${
+              className={`py-1 sm:py-1.5 px-1.5 sm:px-2 rounded-xl flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold transition-all border ${
                 post.isSaved
                   ? 'bg-blue-50 text-blue-600 border-blue-300 shadow-xs'
                   : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -450,7 +446,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
               title={post.isSaved ? 'محفوظ في المفضلة' : 'حفظ الإعلان'}
             >
               <Bookmark className={`w-3.5 h-3.5 ${post.isSaved ? 'fill-blue-600 text-blue-600' : 'text-slate-500'}`} />
-              <span className="text-xs">{post.isSaved ? 'محفوظ' : 'حفظ'}</span>
+              <span>{post.isSaved ? 'محفوظ' : 'حفظ'}</span>
             </button>
 
             {/* 4. Report Button (إبلاغ للدعم) */}
@@ -461,11 +457,11 @@ export const ReelCard: React.FC<ReelCardProps> = ({
                   onOpenReport(post);
                 }
               }}
-              className="py-1.5 px-2 rounded-xl bg-red-50/60 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 flex items-center justify-center gap-1 text-xs font-bold transition-all active:scale-95"
+              className="py-1 sm:py-1.5 px-1.5 sm:px-2 rounded-xl bg-red-50/60 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 flex items-center justify-center gap-1 text-[11px] sm:text-xs font-bold transition-all active:scale-95"
               title="إبلاغ الدعم الفني عن مخالفة"
             >
               <ShieldAlert className="w-3.5 h-3.5" />
-              <span className="text-xs">إبلاغ</span>
+              <span>إبلاغ</span>
             </button>
 
           </div>
@@ -476,7 +472,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
 
       {/* 4. Swipe Up Hint Bar (Discreet at Bottom only in Mobile Single-Reel Mode) */}
       {!isDesktopGrid && (
-        <div className="relative z-10 w-full py-1 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-600 shrink-0">
+        <div className="relative z-10 w-full py-0.5 sm:py-1 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-center gap-1.5 text-[9.5px] sm:text-[10px] font-bold text-slate-600 shrink-0">
           <ArrowUp className="w-3 h-3 text-blue-600 animate-bounce" />
           <span>اسحب للأعلى أو استخدم الأسهم للانتقال للإعلان التالي</span>
         </div>

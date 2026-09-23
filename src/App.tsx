@@ -180,6 +180,7 @@ export default function App() {
   // Responsive layout detection: Desktop defaults to 4-card grid layout, Mobile defaults to full-screen vertical reel
   const [isDesktopGrid, setIsDesktopGrid] = useState(true);
   const [isMobileScreen, setIsMobileScreen] = useState(false);
+  const [isBottomStripVisible, setIsBottomStripVisible] = useState(true);
 
   // Modals & Panels
   const [selectedAdvertiserPost, setSelectedAdvertiserPost] = useState<JobPost | null>(null);
@@ -1156,24 +1157,40 @@ export default function App() {
       <div className="h-[2px] w-full shrink-0 bg-transparent" />
 
       {/* 2.5 Unified Search & Filter Bar (مربع البحث | الوظائف: بحث عن عامل وبحث عن عمل | السياسة | من نحن) */}
-      <UnifiedSearchFilterBar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        totalFilteredCount={filteredPosts.length}
-        jobCount={jobPostsCount}
-        seekerCount={seekerPostsCount}
-        lastInteractedPost={lastInteractedPost}
-        similarJobsCount={similarPosts.length}
-        onOpenSimilarJobs={() => setIsSimilarJobsModalOpen(true)}
-        isDesktopGrid={isDesktopGrid}
-        setIsDesktopGrid={setIsDesktopGrid}
-        isAutoAdvanceActive={isAutoAdvanceActive}
-        setIsAutoAdvanceActive={setIsAutoAdvanceActive}
-        onOpenAboutUs={() => handleOpenGlobalPrivacy('about')}
-        onOpenPolicy={() => handleOpenGlobalPrivacy('policy')}
-      />
+      {isBottomStripVisible ? (
+        <UnifiedSearchFilterBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          totalFilteredCount={filteredPosts.length}
+          jobCount={jobPostsCount}
+          seekerCount={seekerPostsCount}
+          lastInteractedPost={lastInteractedPost}
+          similarJobsCount={similarPosts.length}
+          onOpenSimilarJobs={() => setIsSimilarJobsModalOpen(true)}
+          isDesktopGrid={isDesktopGrid}
+          setIsDesktopGrid={setIsDesktopGrid}
+          isAutoAdvanceActive={isAutoAdvanceActive}
+          setIsAutoAdvanceActive={setIsAutoAdvanceActive}
+          onOpenAboutUs={() => handleOpenGlobalPrivacy('about')}
+          onOpenPolicy={() => handleOpenGlobalPrivacy('policy')}
+          isMobile={isMobileScreen}
+          onToggleCollapse={() => setIsBottomStripVisible(false)}
+        />
+      ) : (
+        /* Floating Restoration Button when the bottom strip is collapsed/hidden in mobile */
+        <button
+          type="button"
+          onClick={() => setIsBottomStripVisible(true)}
+          className="animate-in fade-in slide-in-from-bottom-2 duration-200 absolute bottom-[68px] left-3 z-40 bg-white/95 backdrop-blur-md text-blue-700 hover:text-blue-900 border border-blue-200 shadow-xl px-2.5 py-1.5 rounded-full text-[11px] font-black flex items-center gap-1.5 cursor-pointer active:scale-95"
+          title="إظهار شريط البحث والوظائف"
+        >
+          <Search className="w-3.5 h-3.5 text-blue-600" />
+          <span>البحث والوظائف</span>
+          <ChevronUp className="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
+      )}
 
       {/* 3. Bottom Navigation Bar */}
       <BottomNav

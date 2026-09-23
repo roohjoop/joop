@@ -34,6 +34,8 @@ interface UnifiedSearchFilterBarProps {
   onOpenAboutUs?: () => void;
   onOpenPolicy?: () => void;
   onOpenPersons?: () => void;
+  isMobile?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const UnifiedSearchFilterBar: React.FC<UnifiedSearchFilterBarProps> = ({
@@ -53,7 +55,9 @@ export const UnifiedSearchFilterBar: React.FC<UnifiedSearchFilterBarProps> = ({
   setIsAutoAdvanceActive,
   onOpenAboutUs,
   onOpenPolicy,
-  onOpenPersons
+  onOpenPersons,
+  isMobile,
+  onToggleCollapse
 }) => {
   // Toggle for the sub-windows: "بحث عن عامل" & "بحث عن عمل"
   const [isJobsOpen, setIsJobsOpen] = useState(false);
@@ -208,6 +212,19 @@ export const UnifiedSearchFilterBar: React.FC<UnifiedSearchFilterBarProps> = ({
           >
             <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 shrink-0" />
             <span className="whitespace-nowrap">السياسة ومن نحن</span>
+          </button>
+        )}
+
+        {/* زر إخفاء الشريط السفلي في وضع الهاتف للاستشعار والتعرف على حالة العرض وتمكين التطبيق من ملء الشاشة */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="h-9 px-2 sm:hidden rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1 transition-colors cursor-pointer shrink-0 border border-slate-200 text-[10px] font-black active:scale-95"
+            title="إخفاء هذا الشريط لعرض كامل التطبيق"
+          >
+            <ChevronDown className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span className="text-[9.5px]">إخفاء</span>
           </button>
         )}
 
