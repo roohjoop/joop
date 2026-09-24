@@ -80,6 +80,48 @@ export function subscribeToAuth(callback: (user: User | null) => void): () => vo
 }
 
 // -------------------------------------------------------------
+// Data Sanitization & Safety Helpers
+// -------------------------------------------------------------
+
+/**
+ * Strips all undefined fields recursively because Firestore throws
+ * "Unsupported field value: undefined" on any undefined properties.
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        !(value instanceof Date) &&
+        value.constructor?.name !== 'FieldValue'
+      ) {
+        result[key] = sanitizeForFirestore(value);
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Ensures a valid Firebase Authentication session is established.
+ */
+export async function ensureFirebaseAuth(): Promise<User | null> {
+  if (auth.currentUser) return auth.currentUser;
+  try {
+    const res = await signInAnonymously(auth);
+    return res.user;
+  } catch (err) {
+    console.warn('Anonymous Firebase auth notice:', err);
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
 // Posts (Jobs & Seekers) Services
 // -------------------------------------------------------------
 
@@ -87,10 +129,11 @@ export function subscribeToFirestorePosts(
   onUpdate: (posts: JobPost[]) => void
 ): () => void {
   const collectionPath = 'posts';
-  const q = query(collection(db, collectionPath), orderBy('createdAt', 'desc'), limit(100));
+  const colRef = collection(db, collectionPath);
 
+  // Use collection reference with client-side sort to avoid missing composite index crashes
   return onSnapshot(
-    q,
+    colRef,
     (snapshot) => {
       const posts: JobPost[] = [];
       snapshot.forEach((docSnap) => {
@@ -100,40 +143,106 @@ export function subscribeToFirestorePosts(
           id: docSnap.id
         });
       });
+      // Sort client-side safely
+      posts.sort((a, b) => {
+        const timeA = (a as any).timestamp || (a as any).serverUpdatedAt?.toMillis?.() || 0;
+        const timeB = (b as any).timestamp || (b as any).serverUpdatedAt?.toMillis?.() || 0;
+        if (timeA && timeB) return timeB - timeA;
+        return 0;
+      });
       onUpdate(posts);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.LIST, collectionPath);
+      console.warn('Firestore posts snapshot warning:', error);
+      // Fallback one-time fetch
+      getDocs(colRef)
+        .then((snap) => {
+          const posts: JobPost[] = [];
+          snap.forEach((d) => posts.push({ ...(d.data() as JobPost), id: d.id }));
+          if (posts.length > 0) onUpdate(posts);
+        })
+        .catch((e) => console.warn('Fallback getDocs error:', e));
     }
   );
 }
 
 export async function savePostToFirestore(post: JobPost): Promise<void> {
   const collectionPath = 'posts';
-  const docRef = doc(db, collectionPath, post.id);
+  const safeId = post.id || `post_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  
+  await ensureFirebaseAuth();
+
+  const cleaned = sanitizeForFirestore({
+    ...post,
+    id: safeId,
+    title: post.title || 'إعلان بدون عنوان',
+    type: post.type || 'job',
+    category: post.category || 'وظائف ومهن عامة',
+    location: post.location || 'مصر',
+    description: post.description || '',
+    authorName: post.authorName || 'مستخدم معتمد',
+    authorRole: post.authorRole || (post.type === 'job' ? 'صاحب عمل' : 'مهني / فني'),
+    authorAvatar: post.authorAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    backdropImage: post.backdropImage || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+    likesCount: post.likesCount ?? 1,
+    commentsCount: post.commentsCount ?? 0,
+    tags: post.tags || ['وظائف', 'شغل'],
+    verified: post.verified ?? true,
+    timestamp: Date.now(),
+    serverUpdatedAt: serverTimestamp()
+  });
+
+  const docRef = doc(db, collectionPath, safeId);
   try {
-    await setDoc(docRef, {
-      ...post,
-      serverUpdatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(docRef, cleaned, { merge: true });
+    console.log(`[Firebase Firestore] Post "${safeId}" saved successfully!`);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `${collectionPath}/${post.id}`);
+    console.error(`[Firebase Firestore] Error saving post ${safeId}:`, error);
+    handleFirestoreError(error, OperationType.WRITE, `${collectionPath}/${safeId}`);
   }
 }
 
 export async function batchSavePostsToFirestore(posts: JobPost[]): Promise<void> {
+  if (!posts || posts.length === 0) return;
   const collectionPath = 'posts';
+  await ensureFirebaseAuth();
+
   try {
-    const batch = writeBatch(db);
-    posts.forEach((post) => {
-      const docRef = doc(db, collectionPath, post.id);
-      batch.set(docRef, {
-        ...post,
-        serverUpdatedAt: serverTimestamp()
-      }, { merge: true });
-    });
-    await batch.commit();
+    const chunkSize = 200;
+    for (let i = 0; i < posts.length; i += chunkSize) {
+      const chunk = posts.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+
+      chunk.forEach((post, idx) => {
+        const safeId = post.id || `post_seed_${Date.now() + idx}_${Math.random().toString(36).substring(2, 6)}`;
+        const cleaned = sanitizeForFirestore({
+          ...post,
+          id: safeId,
+          title: post.title || 'إعلان بدون عنوان',
+          type: post.type || 'job',
+          category: post.category || 'وظائف ومهن عامة',
+          location: post.location || 'مصر',
+          description: post.description || '',
+          authorName: post.authorName || 'معلن معتمد',
+          authorRole: post.authorRole || (post.type === 'job' ? 'صاحب عمل' : 'مهني / فني'),
+          authorAvatar: post.authorAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          backdropImage: post.backdropImage || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
+          likesCount: post.likesCount ?? 5,
+          commentsCount: post.commentsCount ?? 0,
+          tags: post.tags || ['وظائف', 'شغل'],
+          verified: true,
+          timestamp: Date.now() + idx,
+          serverUpdatedAt: serverTimestamp()
+        });
+        const docRef = doc(db, collectionPath, safeId);
+        batch.set(docRef, cleaned, { merge: true });
+      });
+
+      await batch.commit();
+      console.log(`[Firebase Firestore] Batch chunk of ${chunk.length} posts committed successfully!`);
+    }
   } catch (error) {
+    console.error('[Firebase Firestore] Batch commit error:', error);
     handleFirestoreError(error, OperationType.WRITE, collectionPath);
   }
 }
@@ -142,7 +251,9 @@ export async function deletePostFromFirestore(postId: string): Promise<void> {
   const path = `posts/${postId}`;
   try {
     await deleteDoc(doc(db, 'posts', postId));
+    console.log(`[Firebase Firestore] Post ${postId} deleted successfully.`);
   } catch (error) {
+    console.error(`[Firebase Firestore] Error deleting post ${postId}:`, error);
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }

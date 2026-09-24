@@ -54,7 +54,8 @@ import {
   syncUserProfileToFirestore,
   saveUserProfileToFirestore,
   getUserProfileFromFirestore,
-  subscribeToAuth
+  subscribeToAuth,
+  ensureFirebaseAuth
 } from './firebase/services';
 
 export default function App() {
@@ -220,8 +221,10 @@ export default function App() {
     localStorage.setItem('shoghl_active_email', activeAccountEmail);
   }, [activeAccountEmail]);
 
-  // Sync user profile from Firebase Firestore on authentication state changes
+  // Ensure Firebase session and sync user profile on authentication state changes
   useEffect(() => {
+    ensureFirebaseAuth().catch((err) => console.warn('Firebase boot session notice:', err));
+
     const unsubscribe = subscribeToAuth(async (fbUser) => {
       if (fbUser && fbUser.email) {
         const cleanEmail = fbUser.email.toLowerCase().trim();

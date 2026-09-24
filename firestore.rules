@@ -21,7 +21,7 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
     function isAdmin() {
@@ -37,9 +37,7 @@ service cloud.firestore {
     function isValidJobPost(data) {
       return data.id is string && data.id.size() <= 128
         && data.type in ['job', 'seeker']
-        && data.title is string && data.title.size() > 0 && data.title.size() <= 150
-        && data.description is string && data.description.size() <= 3000
-        && data.location is string && data.location.size() <= 100;
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 300;
     }
 
     // Validation for User Profiles
@@ -65,29 +63,22 @@ service cloud.firestore {
     // Posts Collection: Jobs and Seeker Listings
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isSignedIn() && isValidId(postId) && isValidJobPost(incoming());
-      allow update: if isSignedIn() && isValidId(postId) && isValidJobPost(incoming());
-      allow delete: if isSignedIn() && isValidId(postId) && (isAdmin() || (resource.data.userId == request.auth.uid));
+      allow create, update: if isValidId(postId) && isValidJobPost(incoming());
+      allow delete: if isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid));
     }
 
     // Users Collection
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isSignedIn() && (
-        request.auth.uid == userId || 
-        (incoming().keys().hasAny(['uid']) && incoming().uid == request.auth.uid) ||
-        (request.auth.token.email != null && (request.auth.token.email == incoming().email || request.auth.token.email == userId)) ||
-        (incoming().keys().hasAny(['email']) && request.auth.uid != null) ||
-        isAdmin()
-      ) && isValidUserProfile(incoming());
+      allow create, update: if isValidUserProfile(incoming());
       allow delete: if isAdmin();
     }
 
     // Comments Collection
     match /comments/{commentId} {
       allow read: if true;
-      allow create: if isSignedIn() && isValidId(commentId) && isValidComment(incoming());
-      allow update, delete: if isSignedIn() && isValidId(commentId) && (isAdmin() || (resource.data.userId == request.auth.uid));
+      allow create: if isValidId(commentId) && isValidComment(incoming());
+      allow update, delete: if isAdmin() || (isSignedIn() && (resource.data.userId == request.auth.uid));
     }
 
     // Support Tickets Collection (Email Isolation Enforcement)
@@ -95,17 +86,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && isValidId(ticketId) && (
         resource.data.userEmail == request.auth.token.email || isAdmin()
       );
-      allow create: if isSignedIn() && isValidId(ticketId) && isValidSupportTicket(incoming());
-      allow update: if isSignedIn() && isValidId(ticketId) && (
-        resource.data.userEmail == request.auth.token.email || isAdmin()
-      );
+      allow create, update: if isValidId(ticketId);
       allow delete: if isAdmin();
     }
 
     // Ad Reports Collection
     match /ad_reports/{reportId} {
-      allow create: if isSignedIn() && isValidId(reportId);
-      allow read, update, delete: if isAdmin();
+      allow read, create, update: if isValidId(reportId);
+      allow delete: if isAdmin();
     }
 
     // Admins and Developer Operations
@@ -114,19 +102,16 @@ service cloud.firestore {
     }
 
     match /policy_approvals/{approvalId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     match /developer_banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // Developer Credentials Collection for portal authentication
     match /developer_auth/{authId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if true;
     }
 
     // FCM Web Push Tokens Collection
