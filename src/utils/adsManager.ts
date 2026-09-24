@@ -91,74 +91,115 @@ export interface DeveloperAdsState {
 }
 
 const STORAGE_KEY_ADS_STATE = 'rooh_developer_ads_config';
+const STORAGE_KEY_LAST_GLOBAL_AD_TIME = 'rooh_last_global_ad_time';
 const STORAGE_KEY_LAST_INTERSTITIAL_TIME = 'rooh_last_interstitial_ad_time';
 const STORAGE_KEY_LAST_REWARDED_TIME = 'rooh_last_rewarded_ad_time';
 const STORAGE_KEY_AD_REPORTS = 'rooh_ad_reports_list';
-export const AD_COOLDOWN_MS = 60 * 1000; // 1 minute (60 seconds) cooldown
+export const AD_COOLDOWN_MS = 60 * 1000; // Minimum 1 minute (60 seconds) cooldown between any ad
 
 /**
- * Checks whether an interstitial ad is allowed to show based on the 1-minute cooldown.
+ * Returns the timestamp of the most recently shown ad across all ad types
+ * (interstitial or rewarded).
+ */
+export function getLastAnyAdTimestamp(): number {
+  try {
+    const tGlobal = Number(localStorage.getItem(STORAGE_KEY_LAST_GLOBAL_AD_TIME) || 0);
+    const tInter = Number(localStorage.getItem(STORAGE_KEY_LAST_INTERSTITIAL_TIME) || 0);
+    const tRew = Number(localStorage.getItem(STORAGE_KEY_LAST_REWARDED_TIME) || 0);
+    return Math.max(tGlobal, tInter, tRew);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Checks whether at least 1 minute (60 seconds) has elapsed since the last ad of ANY type.
+ * Enforces mutual exclusion: a rewarded ad cannot show right after an interstitial ad,
+ * and an interstitial ad cannot show right after a rewarded ad.
+ */
+export function canShowAnyAd(): boolean {
+  try {
+    const lastShown = getLastAnyAdTimestamp();
+    if (!lastShown) return true;
+    const elapsed = Date.now() - lastShown;
+    return elapsed >= AD_COOLDOWN_MS;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Checks whether an interstitial ad is allowed to show based on the 1-minute shared cooldown.
  */
 export function canShowInterstitialAd(): boolean {
-  try {
-    const lastShown = localStorage.getItem(STORAGE_KEY_LAST_INTERSTITIAL_TIME);
-    if (!lastShown) return true;
-    const elapsed = Date.now() - Number(lastShown);
-    return elapsed >= AD_COOLDOWN_MS;
-  } catch {
-    return true;
-  }
+  return canShowAnyAd();
 }
 
 /**
- * Marks an interstitial ad as just shown, resetting the 1-minute cooldown timer.
- */
-export function markInterstitialAdShown(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_LAST_INTERSTITIAL_TIME, Date.now().toString());
-  } catch (err) {
-    console.error('Failed to mark interstitial ad shown:', err);
-  }
-}
-
-/**
- * Checks whether a rewarded ad is allowed to show based on the 1-minute cooldown.
+ * Checks whether a rewarded ad is allowed to show based on the 1-minute shared cooldown.
  */
 export function canShowRewardedAd(): boolean {
+  return canShowAnyAd();
+}
+
+/**
+ * Marks that an ad has been shown across both global and type-specific timestamps.
+ */
+export function markAnyAdShown(type: 'interstitial' | 'rewarded' = 'interstitial'): void {
   try {
-    const lastShown = localStorage.getItem(STORAGE_KEY_LAST_REWARDED_TIME);
-    if (!lastShown) return true;
-    const elapsed = Date.now() - Number(lastShown);
-    return elapsed >= AD_COOLDOWN_MS;
-  } catch {
-    return true;
+    const now = Date.now().toString();
+    localStorage.setItem(STORAGE_KEY_LAST_GLOBAL_AD_TIME, now);
+    if (type === 'interstitial') {
+      localStorage.setItem(STORAGE_KEY_LAST_INTERSTITIAL_TIME, now);
+    } else {
+      localStorage.setItem(STORAGE_KEY_LAST_REWARDED_TIME, now);
+    }
+  } catch (err) {
+    console.error('Failed to mark ad shown timestamp:', err);
   }
 }
 
 /**
- * Marks a rewarded ad as just shown, resetting the 1-minute cooldown timer.
+ * Marks an interstitial ad as just shown, resetting the 1-minute cooldown for all ads.
+ */
+export function markInterstitialAdShown(): void {
+  markAnyAdShown('interstitial');
+}
+
+/**
+ * Marks a rewarded ad as just shown, resetting the 1-minute cooldown for all ads.
  */
 export function markRewardedAdShown(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY_LAST_REWARDED_TIME, Date.now().toString());
-  } catch (err) {
-    console.error('Failed to mark rewarded ad shown:', err);
-  }
+  markAnyAdShown('rewarded');
 }
 
 /**
- * Get remaining cooldown seconds for interstitial or rewarded ad
+ * Get remaining cooldown seconds before any new interstitial or rewarded ad is allowed to show.
  */
-export function getRemainingAdCooldownSeconds(type: 'interstitial' | 'rewarded'): number {
+export function getRemainingAdCooldownSeconds(_type?: 'interstitial' | 'rewarded'): number {
   try {
-    const key = type === 'interstitial' ? STORAGE_KEY_LAST_INTERSTITIAL_TIME : STORAGE_KEY_LAST_REWARDED_TIME;
-    const lastShown = localStorage.getItem(key);
+    const lastShown = getLastAnyAdTimestamp();
     if (!lastShown) return 0;
-    const elapsed = Date.now() - Number(lastShown);
+    const elapsed = Date.now() - lastShown;
     if (elapsed >= AD_COOLDOWN_MS) return 0;
     return Math.ceil((AD_COOLDOWN_MS - elapsed) / 1000);
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Initialize ad cooldown baseline on session start to avoid sudden ads immediately upon opening.
+ */
+export function initAdCooldownSessionBaseline(): void {
+  try {
+    const lastShown = getLastAnyAdTimestamp();
+    if (!lastShown) {
+      // Set session start time so user has at least 1 minute of uninterrupted browsing
+      localStorage.setItem(STORAGE_KEY_LAST_GLOBAL_AD_TIME, Date.now().toString());
+    }
+  } catch (e) {
+    console.warn('Ad session init notice:', e);
   }
 }
 

@@ -42,7 +42,14 @@ import { DeveloperAuthModal } from './components/DeveloperAuthModal';
 import { DeveloperDashboardModal } from './components/DeveloperDashboardModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { InterstitialAdModal } from './components/InterstitialAdModal';
-import { getDeveloperAdsState, canShowInterstitialAd, canShowRewardedAd } from './utils/adsManager';
+import { 
+  getDeveloperAdsState, 
+  canShowInterstitialAd, 
+  canShowRewardedAd, 
+  markInterstitialAdShown, 
+  markRewardedAdShown, 
+  initAdCooldownSessionBaseline 
+} from './utils/adsManager';
 import { applyPageSeo, pingMainPortalArchive } from './utils/seoAndRouting';
 import { syncUserWithCloudflareD1, syncJobPostToFirebase, syncReportToFirebase } from './utils/cloudSync';
 import { grantAccountWelcomeCoins } from './utils/coinsEngine';
@@ -223,6 +230,7 @@ export default function App() {
 
   // Ensure Firebase session and sync user profile on authentication state changes
   useEffect(() => {
+    initAdCooldownSessionBaseline();
     ensureFirebaseAuth().catch((err) => console.warn('Firebase boot session notice:', err));
 
     const unsubscribe = subscribeToAuth(async (fbUser) => {
@@ -473,10 +481,12 @@ export default function App() {
       if (type === 'whatsapp' && currentAds.rewardedAd.triggerOnWhatsApp) {
         setRewardedAdNotice('شاهد إعلان المكافأة (10 ثوانٍ) للانتقال إلى محادثة واتساب');
         setRewardedAdCallback(() => action);
+        markRewardedAdShown();
         setIsRewardedAdOpen(true);
       } else if (type === 'phone' && currentAds.rewardedAd.triggerOnCopyPhone) {
         setRewardedAdNotice('شاهد إعلان المكافأة (10 ثوانٍ) لنسخ رقم الهاتف المباشر');
         setRewardedAdCallback(() => action);
+        markRewardedAdShown();
         setIsRewardedAdOpen(true);
       } else {
         if (action) action();
@@ -734,15 +744,16 @@ export default function App() {
   const handleAdvanceNext = () => {
     if (filteredPosts.length === 0) return;
 
-    // Smart Interstitial Ad trigger every 5 job ads if enabled AND 1 minute has elapsed
+    // Smart Interstitial Ad trigger: requires at least 1 minute (60s) elapsed since the last ad (rewarded or interstitial)
+    // No requirement to watch 5 windows first
     adsAdvanceCounterRef.current += 1;
     const currentAds = getDeveloperAdsState();
     if (
       currentAds.platformAdsEnabled && 
       currentAds.interstitialAd.enabled && 
-      adsAdvanceCounterRef.current % 5 === 0 &&
       canShowInterstitialAd()
     ) {
+      markInterstitialAdShown();
       setIsInterstitialAdOpen(true);
     }
 
@@ -755,6 +766,17 @@ export default function App() {
 
   const handleAdvancePrev = () => {
     if (filteredPosts.length === 0) return;
+
+    const currentAds = getDeveloperAdsState();
+    if (
+      currentAds.platformAdsEnabled && 
+      currentAds.interstitialAd.enabled && 
+      canShowInterstitialAd()
+    ) {
+      markInterstitialAdShown();
+      setIsInterstitialAdOpen(true);
+    }
+
     setSlideDirection(-1);
     setActiveReelIndex((prev) => (prev > 0 ? prev - 1 : filteredPosts.length - 1));
   };
@@ -1533,7 +1555,7 @@ export default function App() {
         }}
       />
 
-      {/* 12. Smart Interstitial Ad Modal (يظهر تلقائياً كل 5 إعلانات وظائف) */}
+      {/* 12. Smart Interstitial Ad Modal (يظهر تلقائياً بفاصل زمني دقيقة بين كل إعلان) */}
       <InterstitialAdModal
         isOpen={isInterstitialAdOpen}
         onClose={() => setIsInterstitialAdOpen(false)}

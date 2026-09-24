@@ -1207,7 +1207,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        يظهر كل 5 إعلانات تصفح بالفيديو مع زر كتم الصوت
+                        يظهر بفاصل زمني لا يقل عن دقيقة بين أي إعلان بالفيديو أو الصورة
                       </p>
                     </div>
 
@@ -1675,7 +1675,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       <h4 className="text-xs font-black text-slate-900">تصميم الإعلان البيني الذكي (فيديو / صورة)</h4>
                     </div>
                     <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
-                      كل 5 إعلانات تصفح
+                      فاصل زمني دقيقة بين كل إعلان
                     </span>
                   </div>
 
