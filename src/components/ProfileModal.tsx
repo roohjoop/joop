@@ -65,7 +65,7 @@ interface ProfileModalProps {
   setIsAutoAdvanceActive: (val: boolean) => void;
   userProfile: UserProfile;
   onUpdateUserProfile: (updated: UserProfile) => void;
-  onConnectAccount?: (email: string, intent: 'employer' | 'seeker') => void;
+  onConnectAccount?: (email: string, intent: 'employer' | 'seeker', userData?: any) => void;
   onDisconnectAccount?: () => void;
   activeNavTab?: ActiveNavTab;
   onNavTabChange?: (tab: ActiveNavTab) => void;
@@ -201,12 +201,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   };
 
   // Called once an account is chosen in GoogleAccountPickerModal
-  const handleGoogleAccountSelected = (chosenEmail: string) => {
+  const handleGoogleAccountSelected = (chosenEmail: string, userData?: any) => {
     setIsGooglePickerOpen(false);
     const welcome = grantAccountWelcomeCoins(chosenEmail);
     setCoins(welcome.coins);
     if (onConnectAccount) {
-      onConnectAccount(chosenEmail, selectedIntent);
+      onConnectAccount(chosenEmail, selectedIntent, userData);
     }
     setCurrentStep('details');
   };

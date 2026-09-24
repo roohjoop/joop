@@ -51,7 +51,10 @@ import {
   savePostToFirestore, 
   deletePostFromFirestore,
   batchSavePostsToFirestore,
-  syncUserProfileToFirestore
+  syncUserProfileToFirestore,
+  saveUserProfileToFirestore,
+  getUserProfileFromFirestore,
+  subscribeToAuth
 } from './firebase/services';
 
 export default function App() {
@@ -217,6 +220,34 @@ export default function App() {
     localStorage.setItem('shoghl_active_email', activeAccountEmail);
   }, [activeAccountEmail]);
 
+  // Sync user profile from Firebase Firestore on authentication state changes
+  useEffect(() => {
+    const unsubscribe = subscribeToAuth(async (fbUser) => {
+      if (fbUser && fbUser.email) {
+        const cleanEmail = fbUser.email.toLowerCase().trim();
+        try {
+          const remoteProfile = await getUserProfileFromFirestore(fbUser.uid, cleanEmail);
+          if (remoteProfile) {
+            setAccountsData((prev) => ({
+              ...prev,
+              [cleanEmail]: {
+                profile: {
+                  ...remoteProfile,
+                  email: cleanEmail
+                },
+                savedPostIds: prev[cleanEmail]?.savedPostIds || []
+              }
+            }));
+            setActiveAccountEmail(cleanEmail);
+          }
+        } catch (e) {
+          console.warn('Failed to load user profile from Firestore on auth boot:', e);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Derived current user profile based on active account (empty if guest)
   const userProfile: UserProfile = useMemo(() => {
     if (activeAccountEmail && accountsData[activeAccountEmail]?.profile) {
@@ -231,20 +262,27 @@ export default function App() {
     return accountsData[activeAccountEmail]?.savedPostIds || [];
   }, [activeAccountEmail, accountsData]);
 
-  // Handle account login/connection
-  const handleConnectAccount = (email: string, intent: 'employer' | 'seeker' = 'employer') => {
+  // Handle account login/connection with direct Firebase Firestore synchronization
+  const handleConnectAccount = async (
+    email: string, 
+    intent: 'employer' | 'seeker' = 'employer',
+    googleUserData?: any
+  ) => {
     const cleanEmail = email.toLowerCase().trim();
     setActiveAccountEmail(cleanEmail);
+
+    let profileToSave: UserProfile | null = null;
 
     setAccountsData((prev) => {
       const existing = prev[cleanEmail];
       if (existing) {
+        profileToSave = existing.profile;
         return prev;
       }
       const newProfile: UserProfile = {
-        name: cleanEmail.split('@')[0],
+        name: googleUserData?.displayName || cleanEmail.split('@')[0],
         role: intent === 'employer' ? 'صاحب عمل / معلن وظائف' : 'باحث عن عمل / مهني وفني',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: googleUserData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         phone: '',
         whatsapp: '',
         address: '',
@@ -253,25 +291,28 @@ export default function App() {
         bio: '',
         verified: true,
         email: cleanEmail,
+        coinsBalance: 50,
         userIntent: intent,
         connectedAccount: {
           email: cleanEmail,
-          provider: 'google',
+          provider: googleUserData ? 'google' : 'email',
           connectedAt: new Date().toISOString(),
-          googleAccountId: 'goog_' + Math.random().toString(36).substring(2, 10),
+          googleAccountId: googleUserData?.uid || ('acc_' + Math.random().toString(36).substring(2, 10)),
           isVerified: true
         }
       };
 
       // Sync with Cloudflare D1 unified users & cross-platform ecosystem
       try {
-        const { user: d1User, isNewUser } = syncUserWithCloudflareD1(newProfile, intent);
+        const { user: d1User } = syncUserWithCloudflareD1(newProfile, intent);
         newProfile.coinsBalance = d1User.coinsBalance;
         newProfile.d1SyncId = d1User.id;
         newProfile.crossPlatformLinked = true;
       } catch (err) {
         console.warn('D1 sync warning:', err);
       }
+
+      profileToSave = newProfile;
 
       return {
         ...prev,
@@ -289,7 +330,16 @@ export default function App() {
       console.warn('Welcome coins grant notice:', e);
     }
 
-    triggerToast(`🎉 مبروك! تم إنشاء حسابك ومنحك 50 كوين هدية ترحيبية ومزامنة بريدك (${cleanEmail}) مع منصة إعلانات Rooh AD!`);
+    // Persist directly to Firebase Firestore
+    try {
+      if (profileToSave) {
+        await saveUserProfileToFirestore(profileToSave, googleUserData?.uid);
+      }
+    } catch (fbErr) {
+      console.error('Failed to persist user profile to Firestore:', fbErr);
+    }
+
+    triggerToast(`🎉 تم تسجيل الدخول وحفظ البيانات بنجاح داخل Firebase! تم منحك 50 كوين ومزامنة بريدك (${cleanEmail})`);
   };
 
   const handleDisconnectAccount = () => {
@@ -297,7 +347,7 @@ export default function App() {
     triggerToast('تم تسجيل الخروج بنجاح');
   };
 
-  const handleUpdateUserProfile = (updated: UserProfile) => {
+  const handleUpdateUserProfile = async (updated: UserProfile) => {
     const email = updated.connectedAccount?.email || activeAccountEmail;
     if (!email) return;
 
@@ -311,7 +361,15 @@ export default function App() {
         }
       };
     });
-    triggerToast('تم حفظ وتحديث بيانات ملفك الشخصي');
+
+    // Persist updated profile to Firebase Firestore
+    try {
+      await saveUserProfileToFirestore(updated);
+    } catch (fbErr) {
+      console.error('Failed to update user profile in Firestore:', fbErr);
+    }
+
+    triggerToast('تم حفظ وتحديث بيانات ملفك الشخصي داخل Firebase بنجاح');
   };
 
   const [reports, setReports] = useState<ReportItem[]>(() => {

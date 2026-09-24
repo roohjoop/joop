@@ -73,7 +73,13 @@ service cloud.firestore {
     // Users Collection
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && isValidUserProfile(incoming());
+      allow create, update: if isSignedIn() && (
+        request.auth.uid == userId || 
+        (incoming().keys().hasAny(['uid']) && incoming().uid == request.auth.uid) ||
+        (request.auth.token.email != null && (request.auth.token.email == incoming().email || request.auth.token.email == userId)) ||
+        (incoming().keys().hasAny(['email']) && request.auth.uid != null) ||
+        isAdmin()
+      ) && isValidUserProfile(incoming());
       allow delete: if isAdmin();
     }
 

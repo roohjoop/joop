@@ -46,6 +46,7 @@ export interface FollowerUser {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   role: string;
   avatar: string;
@@ -62,11 +63,12 @@ export interface UserProfile {
   whatsappNumber?: string;
   followersCount?: number;
   followingCount?: number;
+  createdAt?: string;
   // User Account Connection & Role Selection
   userIntent?: 'employer' | 'seeker'; // معلن عن عمل أو يبحث عن عمل
   connectedAccount?: {
     email: string;
-    provider: 'google';
+    provider: 'google' | 'email';
     connectedAt: string;
     // Private Google metadata stored only for data link / verification without being shown publicly
     googleAccountId?: string;

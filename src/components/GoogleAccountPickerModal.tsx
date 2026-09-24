@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { X, Check, Mail, Lock, ShieldCheck, ArrowLeft, Coins, Sparkles, Zap, Loader2 } from 'lucide-react';
-import { loginWithGoogle } from '../firebase/services';
+import { X, Check, Mail, Lock, ShieldCheck, ArrowLeft, Coins, Sparkles, Zap, Loader2, CheckCircle2 } from 'lucide-react';
+import { loginWithGoogle, loginWithEmailAccount, saveUserProfileToFirestore } from '../firebase/services';
+import { grantAccountWelcomeCoins } from '../utils/coinsEngine';
 
 interface GoogleAccountPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectAccount: (email: string) => void;
+  onSelectAccount: (email: string, userData?: any) => void;
   currentEmail?: string;
 }
 
@@ -17,32 +18,58 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
 }) => {
   const [emailInput, setEmailInput] = useState(currentEmail || '');
   const [errorMsg, setErrorMsg] = useState('');
-  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const handleGoogleFirebaseSignIn = async () => {
-    setIsLoadingGoogle(true);
+    setIsLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
       const user = await loginWithGoogle();
       if (user && user.email) {
-        onSelectAccount(user.email);
-        onClose();
+        const cleanEmail = user.email.toLowerCase().trim();
+        const welcome = grantAccountWelcomeCoins(cleanEmail);
+        
+        // Direct save to Firebase Firestore
+        await saveUserProfileToFirestore({
+          id: user.uid,
+          name: user.displayName || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          avatar: user.photoURL || undefined,
+          role: 'صاحب عمل / معلن وظائف',
+          coinsBalance: welcome.coins || 50,
+          verified: true,
+          connectedAccount: {
+            email: cleanEmail,
+            provider: 'google',
+            connectedAt: new Date().toISOString(),
+            googleAccountId: user.uid,
+            isVerified: true
+          }
+        } as any, user.uid);
+
+        setSuccessMsg('تم تسجيل الدخول وحفظ البيانات بنجاح في Firebase!');
+        setTimeout(() => {
+          onSelectAccount(cleanEmail, user);
+          onClose();
+        }, 600);
       } else {
-        setErrorMsg('لم يتم استكمال تسجيل الدخول بحساب Google');
+        setErrorMsg('تعذر استكمال تسجيل الدخول بحساب Google. يمكنك إدخال البريد الإلكتروني يدوياً بالأسفل.');
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg('حدث خطأ أثناء الاتصال بخدمة Firebase Google Auth');
+      setErrorMsg('حدث خطأ أثناء الاتصال بخدمة Firebase Auth. يرجى استخدام الإدخال اليدوي.');
     } finally {
-      setIsLoadingGoogle(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanEmail = emailInput.trim();
+    const cleanEmail = emailInput.trim().toLowerCase();
     if (!cleanEmail) {
       setErrorMsg('يرجى إدخال عنوان البريد الإلكتروني');
       return;
@@ -52,8 +79,44 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
       return;
     }
     setErrorMsg('');
-    onSelectAccount(cleanEmail);
-    onClose();
+    setIsLoading(true);
+
+    try {
+      // Authenticate with Firebase and ensure active Firebase Auth user
+      const fbUser = await loginWithEmailAccount(cleanEmail, cleanEmail.split('@')[0]);
+      const uid = fbUser?.uid || `usr_${cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+      const welcome = grantAccountWelcomeCoins(cleanEmail);
+
+      // Save user profile immediately to Firebase Firestore
+      await saveUserProfileToFirestore({
+        id: uid,
+        name: cleanEmail.split('@')[0],
+        email: cleanEmail,
+        role: 'صاحب عمل / معلن وظائف',
+        coinsBalance: welcome.coins || 50,
+        verified: true,
+        connectedAccount: {
+          email: cleanEmail,
+          provider: 'email',
+          connectedAt: new Date().toISOString(),
+          googleAccountId: uid,
+          isVerified: true
+        }
+      } as any, uid);
+
+      setSuccessMsg('تم تأكيد الحساب وحفظ البيانات داخل Firebase بنجاح!');
+      setTimeout(() => {
+        onSelectAccount(cleanEmail, fbUser);
+        onClose();
+      }, 600);
+    } catch (err) {
+      console.error('Error during email sign-in / Firebase sync:', err);
+      // Still proceed locally with account selection
+      onSelectAccount(cleanEmail);
+      onClose();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -124,10 +187,10 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
           <button
             type="button"
             onClick={handleGoogleFirebaseSignIn}
-            disabled={isLoadingGoogle}
+            disabled={isLoading}
             className="w-full py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 active:scale-98 transition-all flex items-center justify-center gap-2.5 shadow-xs cursor-pointer disabled:opacity-60"
           >
-            {isLoadingGoogle ? (
+            {isLoading ? (
               <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
             ) : (
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -150,9 +213,16 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
               </svg>
             )}
             <span className="text-xs font-bold text-slate-800">
-              {isLoadingGoogle ? 'جارٍ الاتصال بـ Google...' : 'تسجيل الدخول الفوري بـ Google (Firebase)'}
+              {isLoading ? 'جارٍ الحفظ والمزامنة مع Firebase...' : 'تسجيل الدخول الفوري بـ Google (Firebase)'}
             </span>
           </button>
+
+          {successMsg && (
+            <div className="mt-2 p-2 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-800 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           <div className="flex items-center my-3 gap-2">
             <div className="flex-1 h-[1px] bg-slate-200" />
@@ -199,10 +269,20 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
 
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+              disabled={isLoading}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-60"
             >
-              <Check className="w-3.5 h-3.5 stroke-[3]" />
-              <span>تأكيد الحساب واستلام 50 كوين</span>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 stroke-[3] animate-spin" />
+                  <span>جارٍ الحفظ في Firebase...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>تأكيد الحساب واستلام 50 كوين</span>
+                </>
+              )}
             </button>
           </div>
         </form>
