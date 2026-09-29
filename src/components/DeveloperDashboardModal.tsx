@@ -61,7 +61,10 @@ import {
   AdReportItem,
   getAdReportsList,
   resolveAdReport,
-  deleteAdReport
+  deleteAdReport,
+  isInterstitialAdConfiguredAndActive,
+  isRewardedAdConfiguredAndActive,
+  isPlaceholderOrEmptyVideo
 } from '../utils/adsManager';
 import { 
   getAllSupportTickets, 
@@ -1201,13 +1204,17 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-black text-slate-900">الإعلان البيني (فيديو)</span>
                         <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                          adsState.interstitialAd.enabled && adsState.platformAdsEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                          isInterstitialAdConfiguredAndActive(adsState)
+                            ? 'bg-emerald-100 text-emerald-800' 
+                            : 'bg-slate-200 text-slate-600'
                         }`}>
-                          {adsState.interstitialAd.enabled && adsState.platformAdsEnabled ? 'نشط' : 'معطل'}
+                          {isInterstitialAdConfiguredAndActive(adsState) ? 'نشط ويعمل ✓' : (adsState.interstitialAd.enabled ? 'ينقصه فيديو' : 'معطل حالياً')}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        يظهر بفاصل زمني لا يقل عن دقيقة بين أي إعلان بالفيديو أو الصورة
+                        {isPlaceholderOrEmptyVideo(adsState.interstitialAd.mediaUrl)
+                          ? '⚠️ يلزم توفير فيديو للإعلان وتفعيله لكي يعمل'
+                          : 'يظهر بفاصل زمني لا يقل عن دقيقة بين أي إعلان'}
                       </p>
                     </div>
 
@@ -1220,7 +1227,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       }))}
                       className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
                     >
-                      {adsState.interstitialAd.enabled ? 'تعطيل البيني' : 'تفعيل البيني'}
+                      {adsState.interstitialAd.enabled ? 'تعطيل البيني' : 'تفعيل البيني من الداخل'}
                     </button>
                   </div>
 
@@ -1230,13 +1237,17 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-black text-slate-900">إعلان المكافأة (فيديو)</span>
                         <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                          adsState.rewardedAd.enabled && adsState.platformAdsEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                          isRewardedAdConfiguredAndActive(adsState)
+                            ? 'bg-emerald-100 text-emerald-800' 
+                            : 'bg-slate-200 text-slate-600'
                         }`}>
-                          {adsState.rewardedAd.enabled && adsState.platformAdsEnabled ? 'نشط' : 'معطل'}
+                          {isRewardedAdConfiguredAndActive(adsState) ? 'نشط ويعمل ✓' : (adsState.rewardedAd.enabled ? 'ينقصه فيديو' : 'معطل حالياً')}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        يستمر لنهاية الفيديو لمنح الكوينات عند النقر على واتساب
+                        {isPlaceholderOrEmptyVideo(adsState.rewardedAd.mediaUrl)
+                          ? '⚠️ يلزم توفير فيديو للإعلان وتفعيله لكي يعمل'
+                          : 'يستمر لنهاية الفيديو لمنح الكوينات عند النقر على واتساب'}
                       </p>
                     </div>
 
@@ -1249,7 +1260,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       }))}
                       className="w-full py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors disabled:opacity-50 cursor-pointer"
                     >
-                      {adsState.rewardedAd.enabled ? 'تعطيل المكافأة' : 'تفعيل المكافأة'}
+                      {adsState.rewardedAd.enabled ? 'تعطيل المكافأة' : 'تفعيل المكافأة من الداخل'}
                     </button>
                   </div>
 
@@ -1679,6 +1690,18 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                     </span>
                   </div>
 
+                  {isPlaceholderOrEmptyVideo(adsState.interstitialAd.mediaUrl) ? (
+                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>الإعلان البيني متوقف حالياً ولن يُعرض إلا بعد إدخال رابط فيديو صالح وتفعيله من الداخل.</span>
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>فيديو الإعلان البيني متوفر {adsState.interstitialAd.enabled ? 'والإعلان نشط ويعمل' : 'ولكن الإعلان معطل من زر التفعيل'}.</span>
+                    </div>
+                  )}
+
                   <div className="space-y-2.5 text-xs">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -1809,6 +1832,18 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       حتى انتهاء الفيديو
                     </span>
                   </div>
+
+                  {isPlaceholderOrEmptyVideo(adsState.rewardedAd.mediaUrl) ? (
+                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>إعلان المكافأة متوقف حالياً ولن يُعرض إلا بعد إدخال رابط فيديو صالح وتفعيله من الداخل.</span>
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>فيديو إعلان المكافأة متوفر {adsState.rewardedAd.enabled ? 'والإعلان نشط ويعمل' : 'ولكن الإعلان معطل من زر التفعيل'}.</span>
+                    </div>
+                  )}
 
                   <div className="space-y-2.5 text-xs">
                     <div className="grid grid-cols-2 gap-2">

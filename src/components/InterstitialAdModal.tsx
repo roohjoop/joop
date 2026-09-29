@@ -30,12 +30,13 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
   const currentAdsState = getDeveloperAdsState();
   const adConfig = propAdConfig || currentAdsState.interstitialAd;
 
-  // Master switch: if platform ads are disabled, do not show
+  // Master switch: if platform ads are disabled, or not enabled, or video is missing, do not show
   useEffect(() => {
-    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled)) {
+    const hasVideo = Boolean(adConfig.mediaUrl && adConfig.mediaUrl.trim().length > 0 && !adConfig.mediaUrl.includes('ForBiggerBlazes'));
+    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !hasVideo)) {
       onClose();
     }
-  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled]);
+  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, adConfig.mediaUrl]);
 
   const isVideo = adConfig.mediaType === 'video' || Boolean(
     adConfig.mediaUrl && (

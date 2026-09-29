@@ -161,7 +161,7 @@ export const ReelCard: React.FC<ReelCardProps> = ({
     <div 
       className={`relative overflow-hidden shadow-xl border border-slate-200/90 hover:border-slate-300 bg-white flex flex-col justify-between select-none group transition-all ${
         isDesktopGrid 
-          ? 'w-full max-w-[360px] min-h-[540px] h-[560px] shrink-0 rounded-3xl' 
+          ? 'w-full min-h-[520px] h-[550px] rounded-2xl sm:rounded-3xl' 
           : 'w-full h-full max-w-md sm:max-w-lg rounded-2xl sm:rounded-3xl mx-auto'
       }`}
       onWheel={handleWheel}

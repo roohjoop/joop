@@ -64,15 +64,16 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const rewardGrantedRef = useRef<boolean>(false);
 
-  // Master switch check: if platform ads are disabled by developer, automatically grant and bypass
+  // Master switch check: if platform ads are disabled by developer, or not enabled, or video is missing, automatically grant and bypass
   useEffect(() => {
-    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled)) {
+    const hasVideo = Boolean(adConfig.mediaUrl && adConfig.mediaUrl.trim().length > 0 && !adConfig.mediaUrl.includes('ForBiggerBlazes'));
+    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !hasVideo)) {
       addCoinsBonus(adConfig.rewardCoins || 5);
       if (onRewardCompleted) onRewardCompleted();
       if (onComplete) onComplete();
       onClose();
     }
-  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled]);
+  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, adConfig.mediaUrl]);
 
   // Reset state when modal opens
   useEffect(() => {

@@ -188,7 +188,7 @@ export default function App() {
   const [activeReelIndex, setActiveReelIndex] = useState(0);
   const [isAutoAdvanceActive, setIsAutoAdvanceActive] = useState(true);
   
-  // Responsive layout detection: Desktop defaults to 4-card grid layout, Mobile defaults to full-screen vertical reel
+  // Responsive layout detection: Desktop defaults to 5-card grid layout (2 rows x 5 cards), Mobile defaults to full-screen vertical reel
   const [isDesktopGrid, setIsDesktopGrid] = useState(true);
   const [isMobileScreen, setIsMobileScreen] = useState(false);
   const [isBottomStripVisible, setIsBottomStripVisible] = useState(true);
@@ -1083,7 +1083,11 @@ export default function App() {
       <div className="h-[2px] w-full shrink-0 bg-transparent" />
 
       {/* 2. Main Content View Area - Maximizes 100% of available vertical space without overlap */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-1 sm:px-4 flex flex-col items-center justify-center min-h-0 overflow-hidden">
+      <main className={`flex-1 w-full flex flex-col items-center justify-center min-h-0 overflow-hidden ${
+        !isMobileScreen && isDesktopGrid 
+          ? 'w-full max-w-none px-1.5 sm:px-2.5 lg:px-3' 
+          : 'max-w-7xl mx-auto px-1 sm:px-4'
+      }`}>
         
         {/* Empty State when internal indexing finds zero matches OR when platform is clean */}
         {filteredPosts.length === 0 ? (
@@ -1128,18 +1132,19 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* VIEW MODE 1: DESKTOP MULTI-COLUMN GRID (4 Cards side-by-side)
-                Responsive condition: Enabled on desktop when isDesktopGrid is true AND screen width is large */}
+            {/* VIEW MODE 1: DESKTOP MULTI-COLUMN GRID (5 Cards side-by-side across 2 rows)
+                Responsive condition: Enabled on desktop when isDesktopGrid is true AND screen width is large.
+                Fills 100% of browser window from right to left with zero wasted side space. */}
             {!isMobileScreen && isDesktopGrid ? (
-              <div className="w-full h-full overflow-y-auto py-3 px-2 flex justify-center">
-                {/* 4 Cards Side-by-Side with Generous Height to Display Full Text and Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8 justify-items-center w-full max-w-7xl">
+              <div className="w-full h-full overflow-y-auto py-2 px-1 sm:px-1.5">
+                {/* 5 Cards Side-by-Side (صفين وكل صف فيه خمسة نوافذ) Taking full page width from right to left */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 2xl:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3 pb-6 w-full">
                   {filteredPosts.map((post, idx) => (
                     <ReelCard
                       key={post.id}
                       post={post}
                       isActive={idx === activeReelIndex}
-                      isAutoAdvanceActive={false} // in 4-card grid, keep stationary or focus
+                      isAutoAdvanceActive={false} // in 5-card grid, keep stationary or focus
                       onAdvanceNext={handleAdvanceNext}
                       onAdvancePrev={handleAdvancePrev}
                       onLike={handleToggleLike}

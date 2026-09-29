@@ -251,11 +251,11 @@ export const UnifiedSearchFilterBar: React.FC<UnifiedSearchFilterBarProps> = ({
               <button
                 type="button"
                 onClick={() => setIsDesktopGrid(!isDesktopGrid)}
-                title={isDesktopGrid ? 'التحويل إلى وضع الفيديو الفردي (Reels Mode)' : 'التحويل إلى شبكة 4 بطاقات'}
+                title={isDesktopGrid ? 'التحويل إلى وضع الفيديو الفردي (Reels Mode)' : 'التحويل إلى شبكة 5 بطاقات (صفين)'}
                 className="p-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1 transition-all shadow-xs"
               >
                 {isDesktopGrid ? <Smartphone className="w-3.5 h-3.5 text-red-500" /> : <LayoutGrid className="w-3.5 h-3.5 text-blue-600" />}
-                <span className="text-[10px]">{isDesktopGrid ? 'مفرد' : '4 شبكة'}</span>
+                <span className="text-[10px]">{isDesktopGrid ? 'مفرد' : '5 شبكة'}</span>
               </button>
             )}
           </div>

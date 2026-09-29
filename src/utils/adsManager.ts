@@ -129,16 +129,24 @@ export function canShowAnyAd(): boolean {
 }
 
 /**
- * Checks whether an interstitial ad is allowed to show based on the 1-minute shared cooldown.
+ * Checks whether an interstitial ad is allowed to show:
+ * 1. Must be enabled from the inside
+ * 2. Must have an available valid video URL
+ * 3. Must satisfy the 1-minute shared mutual cooldown
  */
 export function canShowInterstitialAd(): boolean {
+  if (!isInterstitialAdConfiguredAndActive()) return false;
   return canShowAnyAd();
 }
 
 /**
- * Checks whether a rewarded ad is allowed to show based on the 1-minute shared cooldown.
+ * Checks whether a rewarded ad is allowed to show:
+ * 1. Must be enabled from the inside
+ * 2. Must have an available valid video URL
+ * 3. Must satisfy the 1-minute shared mutual cooldown
  */
 export function canShowRewardedAd(): boolean {
+  if (!isRewardedAdConfiguredAndActive()) return false;
   return canShowAnyAd();
 }
 
@@ -269,7 +277,7 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
       sponsorName: 'منصة Rooh Pro للتوظيف الذكي',
       mediaType: 'video',
       imageUrl: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&auto=format&fit=crop&q=80',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      videoUrl: '',
       targetUrl: 'https://roohpro.com/app-download',
       buttonType: 'download',
       buttonLabel: 'تحميل الآن',
@@ -311,11 +319,11 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
     }
   ],
   interstitialAd: {
-    enabled: true,
-    frequencyInterval: 5, // Triggers every 5 job ads
+    enabled: false, // Must be explicitly enabled from the inside and require a valid video
+    frequencyInterval: 5, // Triggers after 1 min cooldown
     title: 'فرصة حصرية: انضم لأكبر شبكة مهنية معتمدة وحقق دخل إضافي',
     sponsorName: 'منصة شغل وتقنية Rooh Pro',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    mediaUrl: '', // No ad video by default: ads will NOT run currently until valid video is provided
     mediaType: 'video',
     waitForVideoEnd: true,
     autoMute: true,
@@ -325,12 +333,12 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
     durationSeconds: 5
   },
   rewardedAd: {
-    enabled: true,
+    enabled: false, // Must be explicitly enabled from the inside and require a valid video
     triggerOnWhatsApp: true,
     triggerOnCopyPhone: true,
     title: 'إعلان مكافأة فيديو: شاهد حتى نهاية الفيديو واحصل على كوينات فورية',
     subtitle: 'شاهد العرض الترويجي صامتاً مع إمكانية تشغيل الصوت لتوثيق التواصل وفتح الرقم المباشر',
-    mediaUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    mediaUrl: '', // No ad video by default: ads will NOT run currently until valid video is provided
     mediaType: 'video',
     waitForVideoEnd: true,
     autoMute: true,
@@ -340,8 +348,40 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
     countdownSeconds: 10,
     rewardCoins: 5
   },
-  lastUpdated: '2026-09-22T00:00:00.000Z'
+  lastUpdated: '2026-09-29T12:00:00.000Z'
 };
+
+/**
+ * Helper to check if a media URL is just an empty or placeholder video
+ */
+export function isPlaceholderOrEmptyVideo(url?: string): boolean {
+  if (!url) return true;
+  const trimmed = url.trim();
+  if (trimmed === '' || trimmed.includes('ForBiggerBlazes')) return true;
+  return false;
+}
+
+/**
+ * Checks whether the interstitial ad has an available valid video AND is enabled from the inside.
+ */
+export function isInterstitialAdConfiguredAndActive(state?: DeveloperAdsState): boolean {
+  const current = state || getDeveloperAdsState();
+  if (!current.platformAdsEnabled) return false;
+  if (!current.interstitialAd || !current.interstitialAd.enabled) return false;
+  if (isPlaceholderOrEmptyVideo(current.interstitialAd.mediaUrl)) return false;
+  return true;
+}
+
+/**
+ * Checks whether the rewarded ad has an available valid video AND is enabled from the inside.
+ */
+export function isRewardedAdConfiguredAndActive(state?: DeveloperAdsState): boolean {
+  const current = state || getDeveloperAdsState();
+  if (!current.platformAdsEnabled) return false;
+  if (!current.rewardedAd || !current.rewardedAd.enabled) return false;
+  if (isPlaceholderOrEmptyVideo(current.rewardedAd.mediaUrl)) return false;
+  return true;
+}
 
 /**
  * Retrieve current ads state from storage
@@ -354,12 +394,31 @@ export function getDeveloperAdsState(): DeveloperAdsState {
       return DEFAULT_ADS_STATE;
     }
     const parsed = JSON.parse(raw);
-    return {
+    const merged: DeveloperAdsState = {
       ...DEFAULT_ADS_STATE,
       ...parsed,
       interstitialAd: { ...DEFAULT_ADS_STATE.interstitialAd, ...(parsed.interstitialAd || {}) },
       rewardedAd: { ...DEFAULT_ADS_STATE.rewardedAd, ...(parsed.rewardedAd || {}) }
     };
+
+    // Clean up any legacy placeholder videos from prior sessions so ads do NOT run currently
+    let modified = false;
+    if (isPlaceholderOrEmptyVideo(merged.interstitialAd.mediaUrl)) {
+      merged.interstitialAd.mediaUrl = '';
+      merged.interstitialAd.enabled = false;
+      modified = true;
+    }
+    if (isPlaceholderOrEmptyVideo(merged.rewardedAd.mediaUrl)) {
+      merged.rewardedAd.mediaUrl = '';
+      merged.rewardedAd.enabled = false;
+      modified = true;
+    }
+
+    if (modified) {
+      localStorage.setItem(STORAGE_KEY_ADS_STATE, JSON.stringify(merged));
+    }
+
+    return merged;
   } catch {
     return DEFAULT_ADS_STATE;
   }
