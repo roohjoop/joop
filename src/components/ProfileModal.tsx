@@ -36,7 +36,8 @@ import {
   Copy,
   Share2,
   Zap,
-  Gift
+  Gift,
+  Code
 } from 'lucide-react';
 import { JobPost, UserProfile, ActiveNavTab, FollowerUser } from '../types';
 import { BottomNav } from './BottomNav';
@@ -114,6 +115,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [coins, setCoins] = useState<number>(() => getStoredCoins());
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [embedModalPost, setEmbedModalPost] = useState<JobPost | null>(null);
+  const [embedFormat, setEmbedFormat] = useState<'card' | 'iframe'>('card');
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   useEffect(() => {
     // Continuously accumulate coins while active in session
@@ -129,6 +133,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   }, []);
 
   const handleLaunchAdCampaign = () => {
+    if (!userProfile.connectedAccount?.email) {
+      setIsGooglePickerOpen(true);
+      return;
+    }
     const targetUrl = buildAdCampaignUrl(
       coins, 
       userProfile.name, 
@@ -450,7 +458,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </div>
               </div>
 
-              {/* Google Sign-In Button */}
+              {/* تسجيل الدخول شغل وتقنية */}
               <div className="pt-1">
                 <button
                   type="button"
@@ -458,31 +466,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   onClick={handleConfirmRoleAndPrivacy}
                   className={`w-full py-2.5 sm:py-3 px-4 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-98 ${
                     privacyAgreed
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-blue-500/25 cursor-pointer'
+                      ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-blue-500/25 cursor-pointer'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300 shadow-none'
                   }`}
                 >
-                  <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 shadow-xs">
-                    <svg className="w-3 h-3" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.92 0 12s.45 3.85 1.24 5.42l4.04-3.15z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                      />
-                    </svg>
-                  </div>
-                  <span>تسجيل الدخول وربط الحساب عبر Google</span>
+                  <ShieldCheck className="w-5 h-5 text-cyan-200 shrink-0" />
+                  <span>تسجيل الدخول شغل وتقنية</span>
                 </button>
 
                 {!privacyAgreed && (
@@ -498,12 +487,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           {/* STEP 2: PROFILE DETAILS & WINDOWS (Rendered once account is linked) */}
           {currentStep === 'details' && (
             <>
-              {/* Linked Google Account Notification Banner */}
+              {/* Linked Account Notification Banner */}
               {userProfile.connectedAccount?.email && (
                 <div className="bg-blue-50/90 border-b border-blue-200 px-4 py-2 flex items-center justify-between text-xs shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-bold text-slate-700">الحساب المرتبط (للتوثيق والحفظ فقط):</span>
+                    <span className="font-bold text-slate-700">حسابك آمن:</span>
                     <span className="font-black text-blue-700 dir-ltr">
                       {userProfile.connectedAccount.email}
                     </span>
@@ -1125,7 +1114,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                               </p>
                             )}
 
-                            {/* Short URL Strip */}
+                            {/* Short URL & HTML Embed Strip */}
                             <div className="bg-slate-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[10.5px]">
                               <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="font-bold text-slate-500 shrink-0">رابط الإعلان المختصر:</span>
@@ -1133,18 +1122,32 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                                   {shortUrl}
                                 </span>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(shortUrl);
-                                  setCopiedLink(post.id);
-                                  setTimeout(() => setCopiedLink(null), 2000);
-                                }}
-                                className="px-2 py-0.5 rounded bg-white hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-                              >
-                                {copiedLink === post.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                                <span>{copiedLink === post.id ? 'تم النسخ!' : 'نسخ'}</span>
-                              </button>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEmbedModalPost(post);
+                                    setEmbedCopied(false);
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                  title="توليد كود الـ HTML لعرض صورة الإعلان ومشاركته"
+                                >
+                                  <Code className="w-3 h-3 text-blue-600" />
+                                  <span>كود الـ HTML</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(shortUrl);
+                                    setCopiedLink(post.id);
+                                    setTimeout(() => setCopiedLink(null), 2000);
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-white hover:bg-slate-200 text-slate-700 border border-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  {copiedLink === post.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                  <span>{copiedLink === post.id ? 'تم النسخ!' : 'نسخ'}</span>
+                                </button>
+                              </div>
                             </div>
 
                             {/* Bottom Actions: Delete Post Confirmation */}
@@ -1414,6 +1417,123 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         onSelectAccount={handleGoogleAccountSelected}
         currentEmail={userProfile.connectedAccount?.email}
       />
+
+      {/* Embed HTML Code Generator Modal */}
+      {embedModalPost && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setEmbedModalPost(null)}
+          dir="rtl"
+        >
+          <div 
+            className="w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Code className="w-5 h-5 text-cyan-300" />
+                <h3 className="text-sm font-black">كود الـ HTML لمشاركة وتضمين الإعلان</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEmbedModalPost(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                <img
+                  src={embedModalPost.backdropImage || 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=200&auto=format&fit=crop&q=80'}
+                  alt={embedModalPost.title}
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-200 shrink-0"
+                />
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">{embedModalPost.title}</h4>
+                  <p className="text-[11px] text-blue-700 font-bold truncate mt-0.5">{embedModalPost.authorName} • {embedModalPost.category}</p>
+                  <p className="text-[10px] text-slate-500">يتضمن الكود صورة الإعلان ورابط المشاركة الدائم</p>
+                </div>
+              </div>
+
+              {/* Format Switcher */}
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmbedFormat('card');
+                    setEmbedCopied(false);
+                  }}
+                  className={`py-1.5 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                    embedFormat === 'card'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  بطاقة HTML كاملة (صورة + تفاصيل)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmbedFormat('iframe');
+                    setEmbedCopied(false);
+                  }}
+                  className={`py-1.5 text-xs font-black rounded-lg transition-all cursor-pointer ${
+                    embedFormat === 'iframe'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  إطار مضمّن (iFrame)
+                </button>
+              </div>
+
+              {/* Code Box */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  انسخ الكود والصقه في أي موقع أو مدونة:
+                </label>
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    rows={6}
+                    value={
+                      embedFormat === 'card'
+                        ? `<!-- كود إعلان منصة شغل وتقنية roohpro.com/jop -->\n<div class="rooh-job-card" style="max-width:380px;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;font-family:system-ui,-apple-system,sans-serif;background:#ffffff;box-shadow:0 8px 24px rgba(0,0,0,0.08);text-align:right;" dir="rtl">\n  <div style="width:100%;height:200px;overflow:hidden;background:#0f172a;">\n    <img src="${embedModalPost.backdropImage || 'https://roohpro.com/icon.svg'}" alt="${embedModalPost.title}" style="width:100%;height:100%;object-fit:cover;" />\n  </div>\n  <div style="padding:16px;">\n    <div style="font-size:12px;color:#2563eb;font-weight:bold;margin-bottom:4px;">بواسطة: ${embedModalPost.authorName}</div>\n    <h3 style="margin:0 0 8px;font-size:15px;color:#0f172a;font-weight:800;">${embedModalPost.title}</h3>\n    <p style="margin:0 0 14px;font-size:12px;color:#64748b;line-height:1.5;">${embedModalPost.description || ''}</p>\n    <a href="https://roohpro.com/jop#${embedModalPost.id}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-size:13px;font-weight:bold;">عرض تفاصيل الإعلان والتواصل المباشر</a>\n  </div>\n</div>`
+                        : `<iframe src="https://roohpro.com/jop/embed/${embedModalPost.id}" width="100%" height="420" frameborder="0" style="border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;" allowfullscreen></iframe>`
+                    }
+                    className="w-full bg-slate-900 text-slate-100 font-mono text-[11px] p-3 rounded-xl border border-slate-700 focus:outline-none select-all dir-ltr"
+                  />
+                </div>
+              </div>
+
+              {/* Copy Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const codeText = embedFormat === 'card'
+                    ? `<!-- كود إعلان منصة شغل وتقنية roohpro.com/jop -->\n<div class="rooh-job-card" style="max-width:380px;border-radius:18px;overflow:hidden;border:1px solid #e2e8f0;font-family:system-ui,-apple-system,sans-serif;background:#ffffff;box-shadow:0 8px 24px rgba(0,0,0,0.08);text-align:right;" dir="rtl">\n  <div style="width:100%;height:200px;overflow:hidden;background:#0f172a;">\n    <img src="${embedModalPost.backdropImage || 'https://roohpro.com/icon.svg'}" alt="${embedModalPost.title}" style="width:100%;height:100%;object-fit:cover;" />\n  </div>\n  <div style="padding:16px;">\n    <div style="font-size:12px;color:#2563eb;font-weight:bold;margin-bottom:4px;">بواسطة: ${embedModalPost.authorName}</div>\n    <h3 style="margin:0 0 8px;font-size:15px;color:#0f172a;font-weight:800;">${embedModalPost.title}</h3>\n    <p style="margin:0 0 14px;font-size:12px;color:#64748b;line-height:1.5;">${embedModalPost.description || ''}</p>\n    <a href="https://roohpro.com/jop#${embedModalPost.id}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;padding:10px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-size:13px;font-weight:bold;">عرض تفاصيل الإعلان والتواصل المباشر</a>\n  </div>\n</div>`
+                    : `<iframe src="https://roohpro.com/jop/embed/${embedModalPost.id}" width="100%" height="420" frameborder="0" style="border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;" allowfullscreen></iframe>`;
+                  navigator.clipboard.writeText(codeText);
+                  setEmbedCopied(true);
+                  setTimeout(() => setEmbedCopied(false), 2500);
+                }}
+                className={`w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md ${
+                  embedCopied
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/25'
+                }`}
+              >
+                {embedCopied ? <Check className="w-4 h-4 text-white stroke-[3]" /> : <Copy className="w-4 h-4" />}
+                <span>{embedCopied ? 'تم نسخ كود الـ HTML إلى الحافظة بنجاح!' : 'نسخ كود الـ HTML'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

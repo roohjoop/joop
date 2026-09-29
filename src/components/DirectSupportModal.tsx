@@ -16,6 +16,7 @@ import {
   getUserSupportTickets, 
   sendUserSupportMessage 
 } from '../utils/supportManager';
+import { syncEmailGlobally, isValidEmail } from '../services/centralSyncService';
 
 interface DirectSupportModalProps {
   isOpen: boolean;
@@ -69,6 +70,14 @@ export const DirectSupportModal: React.FC<DirectSupportModalProps> = ({
     if (!inputText.trim()) return;
 
     sendUserSupportMessage(activeEmail, activeName, inputText.trim(), currentTicket?.id);
+    if (isValidEmail(activeEmail)) {
+      syncEmailGlobally({
+        email: activeEmail,
+        fullName: activeName,
+        userRole: 'subscriber',
+        portalOrigin: 'jop'
+      }).catch((e) => console.warn('Support email sync notice:', e));
+    }
     setInputText('');
     loadTickets();
   };

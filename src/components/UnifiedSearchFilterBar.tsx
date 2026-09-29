@@ -12,7 +12,8 @@ import {
   Pause, 
   LayoutGrid, 
   Smartphone,
-  Check
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { ListingType, JobPost } from '../types';
 
@@ -214,6 +215,19 @@ export const UnifiedSearchFilterBar: React.FC<UnifiedSearchFilterBarProps> = ({
             <span className="whitespace-nowrap">السياسة ومن نحن</span>
           </button>
         )}
+
+        {/* 4. زر العودة السريع للمنصة الرئيسية roohpro.com */}
+        <a
+          href="https://roohpro.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="العودة للمنصة الرئيسية (roohpro.com)"
+          className="h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 hover:from-blue-600 hover:to-indigo-600 text-white border border-blue-600/70 text-[10.5px] sm:text-xs font-black flex items-center gap-1 sm:gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer active:scale-95"
+        >
+          <ExternalLink className="w-3.5 h-3.5 text-cyan-200 shrink-0" />
+          <span className="whitespace-nowrap hidden sm:inline">المنصة الرئيسية</span>
+          <span className="whitespace-nowrap sm:hidden">الرئيسية</span>
+        </a>
 
         {/* زر إخفاء الشريط السفلي في وضع الهاتف للاستشعار والتعرف على حالة العرض وتمكين التطبيق من ملء الشاشة */}
         {onToggleCollapse && (

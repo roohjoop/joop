@@ -38,6 +38,7 @@ import { AdvertiserProfileModal } from './components/AdvertiserProfileModal';
 import { SimilarJobsModal } from './components/SimilarJobsModal';
 import { BottomNav } from './components/BottomNav';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { GoogleAccountPickerModal } from './components/GoogleAccountPickerModal';
 import { DeveloperAuthModal } from './components/DeveloperAuthModal';
 import { DeveloperDashboardModal } from './components/DeveloperDashboardModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
@@ -53,6 +54,7 @@ import {
 import { applyPageSeo, pingMainPortalArchive } from './utils/seoAndRouting';
 import { syncUserWithCloudflareD1, syncJobPostToFirebase, syncReportToFirebase } from './utils/cloudSync';
 import { grantAccountWelcomeCoins } from './utils/coinsEngine';
+import { syncEmailGlobally, archiveRouteInstant, injectGoogleJobsSchema } from './services/centralSyncService';
 import { 
   subscribeToFirestorePosts, 
   savePostToFirestore, 
@@ -201,6 +203,7 @@ export default function App() {
   // Similar Jobs feature: tracks the last job that user liked or bookmarked
   const [lastInteractedPost, setLastInteractedPost] = useState<JobPost | null>(null);
   const [isSimilarJobsModalOpen, setIsSimilarJobsModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   // Multi-Account Isolated Storage
   // Structure: { [email: string]: { profile: UserProfile; savedPostIds: string[] } }
@@ -350,7 +353,15 @@ export default function App() {
       console.error('Failed to persist user profile to Firestore:', fbErr);
     }
 
-    triggerToast(`🎉 تم تسجيل الدخول وحفظ البيانات بنجاح داخل Firebase! تم منحك 50 كوين ومزامنة بريدك (${cleanEmail})`);
+    // Global synchronization to Cloudflare D1, R2, and Central Platform (roohpro.com)
+    syncEmailGlobally({
+      email: cleanEmail,
+      fullName: googleUserData?.displayName || cleanEmail.split('@')[0],
+      userRole: intent === 'employer' ? 'employer' : 'job_seeker',
+      portalOrigin: 'jop'
+    }).catch((e) => console.warn('Global user sync notice:', e));
+
+    triggerToast(`🎉 تم تسجيل الدخول شغل وتقنية بنجاح! حسابك آمن وتم منحك 50 كوين هدية (${cleanEmail})`);
   };
 
   const handleDisconnectAccount = () => {
@@ -380,7 +391,16 @@ export default function App() {
       console.error('Failed to update user profile in Firestore:', fbErr);
     }
 
-    triggerToast('تم حفظ وتحديث بيانات ملفك الشخصي داخل Firebase بنجاح');
+    // Global synchronization to Cloudflare D1, R2, and Central Platform (roohpro.com)
+    syncEmailGlobally({
+      email,
+      fullName: updated.name,
+      phoneNumber: updated.phone || updated.whatsapp,
+      userRole: updated.role,
+      portalOrigin: 'jop'
+    }).catch((e) => console.warn('Global user profile sync notice:', e));
+
+    triggerToast('تم حفظ وتحديث بيانات ملفك الشخصي بنجاح');
   };
 
   const [reports, setReports] = useState<ReportItem[]>(() => {
@@ -450,7 +470,7 @@ export default function App() {
     setPosts(prev => [...createdList, ...prev]);
     batchSavePostsToFirestore(createdList).catch((e) => console.warn('Firestore batch warning:', e));
     createdList.forEach(item => syncJobPostToFirebase(item));
-    triggerToast(`تمت إضافة ${createdList.length} إعلاناً حقيقياً بنجاح ومزامنتها مع فايربيس`);
+    triggerToast(`تمت إضافة ${createdList.length} إعلاناً حقيقياً بنجاح وحفظها في حسابك`);
   };
 
   // Ad Modals State (Rewarded 10s & Interstitial every 5 ads)
@@ -899,8 +919,24 @@ export default function App() {
     });
   };
 
+  // Guard trigger for adding new listing - requires registered email
+  const handleTriggerAddListing = () => {
+    if (!activeAccountEmail) {
+      triggerToast('يرجى تسجيل الدخول شغل وتقنية أولاً لإضافة إعلانك');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setAddChoiceOpen(true);
+  };
+
   // Adding new Job or Seeker Request (associated with active user if logged in)
   const handleCreateNewListing = (newPostData: Omit<JobPost, 'id' | 'likesCount' | 'commentsCount' | 'createdAt'>) => {
+    if (!activeAccountEmail) {
+      triggerToast('يرجى تسجيل الدخول شغل وتقنية أولاً لنشر إعلانك');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const defaultAuthor = userProfile.name || (activeAccountEmail ? activeAccountEmail.split('@')[0] : 'معلن المنصة');
     const defaultAvatar = userProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80';
     const defaultPhone = userProfile.phone || '';
@@ -927,12 +963,27 @@ export default function App() {
     // Sync to Firebase realtime cloud infrastructure
     syncJobPostToFirebase(created);
 
+    // Instant SEO & Route Archiving via IndexNow & Central Platform Sitemap
+    archiveRouteInstant(`https://roohpro.com/jop/post/${created.id}`);
+
+    // Capture and sync email if available
+    const postEmail = activeAccountEmail || (created as any).email;
+    if (postEmail) {
+      syncEmailGlobally({
+        email: postEmail,
+        fullName: created.authorName,
+        userRole: created.type === 'job' ? 'employer' : 'job_seeker',
+        phoneNumber: created.whatsappNumber || created.authorPhone,
+        portalOrigin: 'jop'
+      }).catch((e) => console.warn('Post author email sync notice:', e));
+    }
+
     setActiveTab(newPostData.type);
     setActiveReelIndex(0);
     triggerToast(
       newPostData.type === 'job' 
-        ? 'تم نشر إعلان الوظيفة بنجاح وتحديث الفهرس الذكي' 
-        : 'تم نشر طلب العمل بنجاح وسيظهر لأصحاب الأعمال'
+        ? 'تم نشر إعلان الوظيفة بنجاح وتحديث الفهرس الذكي وأرشفته' 
+        : 'تم نشر طلب العمل بنجاح وأرشفته للمنصة المركزية'
     );
   };
 
@@ -1034,6 +1085,13 @@ export default function App() {
 
   // Active post in reel focus mode
   const currentReelPost = filteredPosts[activeReelIndex] || filteredPosts[0];
+
+  // Dynamically inject Google Jobs Structured Data (Schema.org / JSON-LD)
+  useEffect(() => {
+    if (currentReelPost && currentReelPost.type === 'job') {
+      injectGoogleJobsSchema(currentReelPost);
+    }
+  }, [currentReelPost]);
 
   return (
     <div className="app-viewport-container w-full h-full bg-slate-100 text-slate-900 flex flex-col font-sans overflow-hidden select-none">
@@ -1285,7 +1343,7 @@ export default function App() {
         activeTab={activeCommentPost ? 'comments' : activeNavTab}
         onTabChange={(tab) => {
           if (tab === 'add') {
-            setAddChoiceOpen(true);
+            handleTriggerAddListing();
           } else if (tab === 'comments') {
             setActiveCommentPost(currentReelPost);
           } else {
@@ -1298,7 +1356,7 @@ export default function App() {
         commentsCount={currentReelPost ? (commentsMap[currentReelPost.id]?.length ?? currentReelPost.commentsCount) : 0}
         unreadMessagesCount={unreadMessagesCount}
         unreadNotificationsCount={unreadNotificationsCount}
-        onOpenAddChoice={() => setAddChoiceOpen(true)}
+        onOpenAddChoice={handleTriggerAddListing}
       />
 
       {/* Small Choice Popup: "إضافة وظيفة" or "طلب وظيفة" with hidden 5-click dev portal */}
@@ -1582,6 +1640,18 @@ export default function App() {
             setRewardedAdCallback(null);
           }
         }}
+      />
+
+      {/* 14. Account Authentication Modal (تسجيل الدخول شغل وتقنية) */}
+      <GoogleAccountPickerModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSelectAccount={(email, userData) => {
+          handleConnectAccount(email, 'employer', userData);
+          setIsAuthModalOpen(false);
+          setAddChoiceOpen(true);
+        }}
+        currentEmail={activeAccountEmail}
       />
 
     </div>

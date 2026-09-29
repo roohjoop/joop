@@ -96,6 +96,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Subscribers & Email Collection for Central Cloudflare D1 Synchronization
+    match /jop_subscribers/{subId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /subscribers/{subId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+    }
+
     // Admins and Developer Operations
     match /admins/{adminId} {
       allow read, write: if isAdmin();

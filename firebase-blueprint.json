@@ -112,6 +112,21 @@
         "updatedAt": { "type": "string", "maxLength": 60 }
       },
       "required": ["email", "securityCode"]
+    },
+    "JopSubscriber": {
+      "title": "JopSubscriber",
+      "description": "User email subscriber synchronized with Cloudflare D1 and Central Platform",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 120 },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "userRole": { "type": "string", "maxLength": 50 },
+        "phoneNumber": { "type": "string", "maxLength": 30 },
+        "portalOrigin": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string", "maxLength": 60 },
+        "syncedToMain": { "type": "boolean" }
+      },
+      "required": ["email"]
     }
   },
   "firestore": {
@@ -122,6 +137,14 @@
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Registered user profile details"
+    },
+    "/jop_subscribers/{subId}": {
+      "schema": "JopSubscriber",
+      "description": "Subscriber emails captured and synced with Cloudflare D1"
+    },
+    "/subscribers/{subId}": {
+      "schema": "JopSubscriber",
+      "description": "Cross-platform email subscriber records"
     },
     "/comments/{commentId}": {
       "schema": "Comment",

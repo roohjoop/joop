@@ -339,6 +339,46 @@ export async function saveUserProfileToFirestore(
   }
 }
 
+/**
+ * Saves or updates email subscriber in Firestore (jop_subscribers & subscribers collections)
+ * Synchronized with Cloudflare D1 and Central Platform
+ */
+export async function saveSubscriberToFirestore(subscriber: {
+  email: string;
+  fullName?: string;
+  userRole?: string;
+  phoneNumber?: string;
+  portalOrigin?: string;
+  metadata?: Record<string, any>;
+}): Promise<boolean> {
+  const cleanEmail = (subscriber.email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) return false;
+
+  await ensureFirebaseAuth();
+  const sanitizedKey = cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const payload = sanitizeForFirestore({
+    email: cleanEmail,
+    fullName: subscriber.fullName || cleanEmail.split('@')[0],
+    userRole: subscriber.userRole || 'job_seeker',
+    phoneNumber: subscriber.phoneNumber || '',
+    portalOrigin: subscriber.portalOrigin || 'jop',
+    metadata: subscriber.metadata || {},
+    createdAt: new Date().toISOString(),
+    serverCreatedAt: serverTimestamp(),
+    syncedToMain: true
+  });
+
+  try {
+    await setDoc(doc(db, 'jop_subscribers', sanitizedKey), payload, { merge: true });
+    await setDoc(doc(db, 'subscribers', sanitizedKey), payload, { merge: true });
+    return true;
+  } catch (error) {
+    console.warn('Error saving subscriber to Firestore:', error);
+    return false;
+  }
+}
+
 export async function getUserProfileFromFirestore(
   uidOrEmail: string,
   backupEmail?: string

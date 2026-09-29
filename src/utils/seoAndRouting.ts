@@ -2,6 +2,10 @@
  * SEO, Routing, Short Links, and Google Indexing Dispatcher for Rooh Pro (roohpro.com/jop)
  */
 
+import { archiveRouteInstant, injectGoogleJobsSchema } from '../services/centralSyncService';
+
+export { archiveRouteInstant, injectGoogleJobsSchema };
+
 export const BASE_PLATFORM_URL = 'https://roohpro.com/jop';
 export const MAIN_PORTAL_URL = 'https://roohpro.com';
 export const ADS_PORTAL_URL = 'https://roohpro.com/AD';
