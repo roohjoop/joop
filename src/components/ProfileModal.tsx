@@ -37,7 +37,12 @@ import {
   Share2,
   Zap,
   Gift,
-  Code
+  Code,
+  Camera,
+  Upload,
+  Palette,
+  Eye,
+  Sliders
 } from 'lucide-react';
 import { JobPost, UserProfile, ActiveNavTab, FollowerUser } from '../types';
 import { BottomNav } from './BottomNav';
@@ -48,9 +53,7 @@ import { syncUserWithCloudflareD1 } from '../utils/cloudSync';
 import { 
   getStoredCoins, 
   saveStoredCoins, 
-  buildAdCampaignUrl, 
   grantAccountWelcomeCoins,
-  addCoinsBonus,
   getRoohAdSyncInfo 
 } from '../utils/coinsEngine';
 import { buildShortAdUrl, buildUserProfileUrl, applyPageSeo } from '../utils/seoAndRouting';
@@ -105,13 +108,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   // If user hasn't connected account yet, guide them directly to the onboarding step
   const isAccountConnected = Boolean(userProfile.connectedAccount?.email);
 
-  const [activeTab, setActiveTab] = useState<'editProfile' | 'myPosts' | 'followers' | 'following' | 'saved' | 'settings'>('editProfile');
+  const [activeTab, setActiveTab] = useState<'myPosts' | 'designSettings' | 'editProfile' | 'followers' | 'following' | 'saved' | 'settings'>('myPosts');
   
   // Local edit state initialized with current profile
   const [formData, setFormData] = useState<UserProfile>(userProfile);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Coins Counter Engine (counts up continuously while user is in the platform)
+  // Avatar Management States & References
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Preset professional avatars
+  const PRESET_AVATARS = [
+    { label: 'رجل أعمال', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80' },
+    { label: 'سيدة أعمال', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80' },
+    { label: 'مهندس تقني', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80' },
+    { label: 'متخصص مهني', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80' },
+    { label: 'شعار منشأة', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=200&auto=format&fit=crop&q=80' },
+    { label: 'محترف أعمال', url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&auto=format&fit=crop&q=80' },
+  ];
+
+  // Coins Counter Engine - updates per session, no second ticking
   const [coins, setCoins] = useState<number>(() => getStoredCoins());
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
@@ -120,35 +138,50 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [embedCopied, setEmbedCopied] = useState(false);
 
   useEffect(() => {
-    // Continuously accumulate coins while active in session
-    const timer = setInterval(() => {
-      setCoins((prev) => {
-        const next = prev + 1;
-        saveStoredCoins(next);
-        return next;
-      });
-    }, 7000); // 1 coin every 7 seconds
-
-    return () => clearInterval(timer);
+    // Sync coins state with storage events
+    const handleCoinsEvent = (e: any) => {
+      if (e?.detail?.coins !== undefined) {
+        setCoins(e.detail.coins);
+      } else {
+        setCoins(getStoredCoins());
+      }
+    };
+    window.addEventListener('rooh_coins_updated', handleCoinsEvent);
+    return () => {
+      window.removeEventListener('rooh_coins_updated', handleCoinsEvent);
+    };
   }, []);
 
-  const handleLaunchAdCampaign = () => {
-    if (!userProfile.connectedAccount?.email) {
-      setIsGooglePickerOpen(true);
-      return;
-    }
-    const targetUrl = buildAdCampaignUrl(
-      coins, 
-      userProfile.name, 
-      userProfile.userIntent,
-      userProfile.connectedAccount?.email
-    );
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      if (base64) {
+        const updated = { ...formData, avatar: base64 };
+        setFormData(updated);
+        onUpdateUserProfile(updated);
+        setIsAvatarPickerOpen(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleClaimBonusCoins = () => {
-    const next = addCoinsBonus(10);
-    setCoins(next);
+  const handleSelectPresetAvatar = (url: string) => {
+    const updated = { ...formData, avatar: url };
+    setFormData(updated);
+    onUpdateUserProfile(updated);
+    setIsAvatarPickerOpen(false);
+  };
+
+  const handleApplyCustomAvatarUrl = () => {
+    if (!customAvatarUrl.trim()) return;
+    const updated = { ...formData, avatar: customAvatarUrl.trim() };
+    setFormData(updated);
+    onUpdateUserProfile(updated);
+    setCustomAvatarUrl('');
+    setIsAvatarPickerOpen(false);
   };
 
   // Onboarding / Connection Flow States
@@ -258,15 +291,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             ) : (
               <div className="flex items-center gap-2.5">
-                <div className="relative shrink-0">
-                  <img
-                    src={userProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-                    alt={userProfile.name || 'المستخدم'}
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl object-cover border-2 border-blue-600 shadow-sm"
-                  />
+                <div 
+                  className="relative shrink-0 group cursor-pointer"
+                  onClick={() => setIsAvatarPickerOpen(true)}
+                  title="انقر لتغيير صورة البروفايل"
+                >
+                  {formData.showProfilePicture !== false ? (
+                    <img
+                      src={formData.avatar || userProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                      alt={userProfile.name || 'المستخدم'}
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl object-cover border-2 border-blue-600 shadow-sm group-hover:brightness-95 transition-all"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 border-2 border-slate-500 shadow-sm flex items-center justify-center text-white group-hover:brightness-110 transition-all">
+                      <Shield className="w-5 h-5 text-blue-300" />
+                    </div>
+                  )}
+                  <span className="absolute -bottom-1 -right-1 bg-blue-600 group-hover:bg-blue-700 text-white rounded-full p-0.5 border border-white shadow-xs transition-colors">
+                    <Camera className="w-2.5 h-2.5" />
+                  </span>
                   {userProfile.verified && (
-                    <span className="absolute -bottom-1 -left-1 bg-blue-600 text-white rounded-full p-0.5 border border-white">
-                      <CheckCircle2 className="w-3 h-3" />
+                    <span className="absolute -top-1 -left-1 bg-emerald-500 text-white rounded-full p-0.5 border border-white">
+                      <CheckCircle2 className="w-2.5 h-2.5" />
                     </span>
                   )}
                 </div>
@@ -303,6 +349,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
             )}
 
             <div className="flex items-center gap-1.5">
+              {isAccountConnected && (
+                <div className="bg-amber-100/90 text-amber-950 border border-amber-300 px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-2xs">
+                  <Coins className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <span>{coins} كوين</span>
+                </div>
+              )}
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-xl text-blue-700 hover:text-blue-900 hover:bg-white/80 transition-colors flex items-center gap-1 font-bold text-xs"
@@ -327,35 +379,33 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {/* Header Box */}
               <div className="bg-gradient-to-r from-blue-50 via-indigo-50/70 to-blue-50 border border-blue-200 rounded-2xl p-3 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                  <Lock className="w-5 h-5" />
+                  <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-xs sm:text-sm font-black text-slate-900">
-                    ربط الحساب وتسجيل الدخول الآمن
+                    إنشاء وتسجيل الدخول بحسابك
                   </h2>
                   <p className="text-[11px] text-slate-600 font-medium leading-relaxed">
-                    حدد صفتك، وافق على سياسة الخصوصية، ثم اربط حساب Google لحفظ إعلاناتك ومفضلاتك ومتابعيك بأمان.
+                    حدد صفتك ووافق على الشروط للوصول إلى حسابك المحمي ومتابعة أعمالك وإعلاناتك.
                   </p>
                 </div>
               </div>
 
-              {/* 50 Welcome Coins & Rooh AD Campaign Sync Feature Banner */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white shadow-md flex items-center justify-between gap-3 border border-amber-400">
-                <div className="flex items-center gap-2.5 sm:gap-3">
-                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
-                    <Coins className="w-6 h-6 text-amber-100 animate-bounce" />
+              {/* 50 Welcome Coins Card */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-50 via-slate-50 to-blue-50 border border-blue-200 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Coins className="w-5 h-5 text-amber-300" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs sm:text-sm font-black text-slate-900">50 كوين هدية ترحيبية فورية بحسابك</h4>
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded-full font-black">
+                      مجاناً
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs sm:text-sm font-black">هدية ترحيبية فورية: 50 كوين بحسابك الجديد!</h4>
-                      <span className="text-[9px] bg-white text-orange-700 px-1.5 py-0.2 rounded-full font-black">
-                        مجاناً 100%
-                      </span>
-                    </div>
-                    <p className="text-[10.5px] text-amber-100 font-medium leading-relaxed mt-0.5">
-                      بمجرد إنشاء أو إضافة حسابك، يظهر في صفحتك <strong>50 كوين فوري</strong> مع عداد كوينات خاص بك يستمر في جمع الكوينات، وتتم <strong>مزامنة بريدك الإلكتروني تلقائياً مع منصة إعلانات Rooh AD (Roohpro.com/AD)</strong> لتمكينك من إطلاق حملاتك الإعلانية على أي منصة تابعة لنا!
-                    </p>
-                  </div>
+                  <p className="text-[10.5px] text-slate-600 font-medium leading-relaxed mt-0.5">
+                    تُضاف تلقائياً إلى رصيدك لتمكينك من إدارة وتنشيط إعلاناتك، مع زيادة 50 كوين لكل جلسة تقضيها في المنصة.
+                  </p>
                 </div>
               </div>
 
@@ -531,77 +581,45 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 </button>
               </div>
 
-              {/* Live Coins Counter Card with 50 Welcome Coins bonus, continuous counting, and Rooh AD Campaign Sync:
-                  "ويكون في هذه الصفحه ايضا عداد كوينات يستمر في العد اثناء توافر المستخدم داخل المنصه
-                   ويجب اضافه ميزه ايضا داخل صفحه انشاء الحساب الخاصه بصفحه حسابي عندما يقوم اي مستخدم بانشاء او اضافه حساب يجب ان يتم ظهور في الصفحه الخاصه به 50 كوين يتمكن من خلالهم من جمع الكوينات ايضا ويكون له عداد كوينات خاضت به داخل الصفحه الخاصه به لكي يتم تمكينه من انشاء حمله اعلانيه داخل منصه اد لانها تمكنه عندما يقوم بانشاء حساب داخل المنصه الخاصه بنا هنا يتم مزامنه الايميل الخاص به داخل منصه اد ليتمكن من انشاء حمله اعلانيه في اي منصه من المنصات الخاصه بنا"
-              */}
-              <div className="mx-4 sm:mx-5 my-3 p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 border-2 border-amber-300 shadow-sm flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/30 animate-pulse">
-                      <Coins className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-black text-amber-950">عداد الكوينات النشط الخاص بك:</span>
-                        <span className="text-sm font-black bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-lg border border-amber-400/60 font-mono shadow-xs">
-                          {coins} كوين
-                        </span>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                          <span>50 كوين هدية إنشاء الحساب مُودعة</span>
-                        </span>
-                      </div>
-                      <p className="text-[10.5px] text-amber-900 font-medium leading-relaxed mt-1">
-                        ✨ يستمر هذا العداد في جمع الكوينات تلقائياً أثناء تواجدك وتفاعلك بالمنصة.
-                      </p>
-                    </div>
+              {/* Coins & Account Overview Card: +50 coins per session, no second ticking */}
+              <div className="mx-4 sm:mx-5 my-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50 border-2 border-amber-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
+                    <Coins className="w-6 h-6" />
                   </div>
-
-                  {/* Quick Collect Bonus Button */}
-                  <button
-                    type="button"
-                    onClick={handleClaimBonusCoins}
-                    className="px-3 py-1.5 rounded-xl bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-black text-[11px] border border-amber-400/60 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
-                    title="جمع كوينات إضافية فورية للتفاعل"
-                  >
-                    <Zap className="w-3.5 h-3.5 text-amber-700 fill-amber-500" />
-                    <span>جمع كوينات إضافية (+10)</span>
-                  </button>
-                </div>
-
-                {/* Rooh AD Sync & Campaign Launch Strip */}
-                <div className="pt-2.5 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white/70 p-3 rounded-xl border">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                      <span>مزامنة البريد الإلكتروني مع منصة إعلانات Rooh AD:</span>
-                      <span className="font-bold text-blue-700 dir-ltr bg-blue-50 px-1.5 py-0.2 rounded text-[11px] border border-blue-200">
-                        {userProfile.connectedAccount?.email || 'تمت المزامنة'}
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-amber-950">رصيد الكوينات في حسابك:</span>
+                      <span className="text-sm font-black bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-lg border border-amber-400/60 font-mono">
+                        {coins} كوين
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md border border-emerald-300">
+                        +50 كوين لكل جلسة
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-600 leading-snug">
-                      تمت مزامنة بريدك آلياً في شبكة <strong>Rooh AD</strong>. يمكنك إطلاق حملات إعلانية ممولة باستخدام رصيدك ({coins} كوين) على جميع منصاتنا الرقمية التابعة لشبكة Rooh Pro!
+                    <p className="text-[10.5px] text-amber-900 font-medium leading-relaxed mt-1">
+                      تزداد الكوينات بمقدار 50 كوين مع كل جلسة استخدام داخل التطبيق لاستخدامها في نشر وتنشيط إعلاناتك.
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleLaunchAdCampaign}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white font-black text-xs shadow-md shadow-orange-600/25 flex items-center justify-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                    <span>إنشاء حملة إعلانية بالكوينات (Roohpro.com/AD)</span>
-                    <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
-                  </button>
                 </div>
 
-                {/* Clear Incentive Coins Policy & Legal Disclaimer Note */}
-                <div className="bg-amber-100/70 border border-amber-300/80 rounded-xl p-2.5 flex items-start gap-2 text-[10.5px] text-amber-950">
-                  <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">
-                    <strong>إفصاح وضوابط الكوينات التشجيعية:</strong> هذه الكوينات نقاط تشجيعية مجانية رقمية مخصصة حصرياً لإنشاء وترويج الإعلانات داخل منصتنا. ليس لها أي قيمة مالية أو نقدية ولا يمكن استبدالها بأموال حقيقية أو بيعها، ولا يتمكن المستخدم من إنشاء حملات إعلانية مدفوعة بأموال حقيقية؛ فجميع الحملات والكوينات المجمعة تستخدم فقط داخل المنصة وتعتبر تشجيعية مجانية بالكامل.
-                  </p>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('designSettings')}
+                    className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 font-black text-[11px] border border-slate-200 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Palette className="w-3.5 h-3.5 text-blue-600" />
+                    <span>ضبط التصميم</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarPickerOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-blue-200" />
+                    <span>تغيير الصورة</span>
+                  </button>
                 </div>
               </div>
 
@@ -648,6 +666,30 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               <div className="px-4 sm:px-5 pt-3 border-b border-slate-200 bg-slate-50 shrink-0">
                 <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
                   <button
+                    onClick={() => setActiveTab('myPosts')}
+                    className={`pb-3 text-xs sm:text-sm font-black flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+                      activeTab === 'myPosts'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    <span>أعمالي وإعلاناتي ({myPosts.length})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('designSettings')}
+                    className={`pb-3 text-xs sm:text-sm font-black flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
+                      activeTab === 'designSettings'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Palette className="w-4 h-4" />
+                    <span>ضبط التصميم والمظهر</span>
+                  </button>
+
+                  <button
                     onClick={() => setActiveTab('editProfile')}
                     className={`pb-3 text-xs sm:text-sm font-black flex items-center gap-1.5 border-b-2 whitespace-nowrap transition-all ${
                       activeTab === 'editProfile'
@@ -656,7 +698,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     }`}
                   >
                     <Edit3 className="w-4 h-4" />
-                    <span>تعديل ملفي وتفاصيلي</span>
+                    <span>بيانات الحساب</span>
                   </button>
 
                   <button
@@ -723,7 +765,243 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
               {/* Tab Body Content */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-                
+
+                {/* TAB: DESIGN & PROFILE APPEARANCE SETTINGS ("واجهة ضبط التصميم الخاص به") */}
+                {activeTab === 'designSettings' && (
+                  <div className="space-y-4">
+                    {/* Header Banner */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <Palette className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                            واجهة ضبط تصميم ومظهر حسابك
+                          </h4>
+                          <p className="text-[11px] text-slate-600 font-medium">
+                            تحكم في إظهار أو إخفاء صورتك الشخصية، وضبط مظهر بطاقة ملفك وإعلاناتك.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md border border-blue-200 shrink-0 hidden sm:inline">
+                        مظهر مخصص
+                      </span>
+                    </div>
+
+                    {/* Live Preview Card */}
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-blue-600" />
+                          <span>معاينة مظهر حسابك كما يظهر للمستخدمين والزوار:</span>
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-bold">معاينة فورية</span>
+                      </div>
+
+                      <div className={`p-3.5 rounded-2xl border transition-all ${
+                        formData.designTheme === 'royal_gold'
+                          ? 'bg-gradient-to-r from-amber-900 via-amber-950 to-slate-900 text-white border-amber-500 shadow-md'
+                          : formData.designTheme === 'emerald_pro'
+                          ? 'bg-gradient-to-r from-emerald-900 via-teal-950 to-slate-900 text-white border-emerald-500 shadow-md'
+                          : formData.designTheme === 'slate_dark'
+                          ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-slate-700 shadow-md'
+                          : 'bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 text-white border-blue-500 shadow-md'
+                      }`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0">
+                              {formData.showProfilePicture !== false ? (
+                                <img
+                                  src={formData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                                  alt={formData.name}
+                                  className="w-12 h-12 rounded-2xl object-cover border-2 border-white/80 shadow-md"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border-2 border-white/30 flex items-center justify-center text-white shadow-md">
+                                  <Shield className="w-6 h-6 text-amber-300" />
+                                </div>
+                              )}
+                              <span className="absolute -bottom-1 -left-1 bg-emerald-500 text-white rounded-full p-0.5 border border-white">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-black truncate">{formData.name || 'اسمك المهني'}</h4>
+                                <span className="text-[9px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">
+                                  {formData.showProfilePicture !== false ? 'صورة معروضة' : 'هوية محمية (بدون صورة)'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-white/80 font-bold truncate mt-0.5">
+                                {formData.role || 'المسمى الوظيفي'} {formData.company ? `• ${formData.company}` : ''}
+                              </p>
+                              <p className="text-[10px] text-white/60 mt-0.5">
+                                {formData.city || 'المدينة'} • {formData.country || 'الدولة'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsAvatarPickerOpen(true)}
+                            className="px-2.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[11px] font-black border border-white/30 flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>تغيير الصورة</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Setting 1: Toggle Show Profile Picture ("عرض صورة خاصة بالبروفايل ده ولا لا") */}
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                            عرض الصورة الخاصة بالبروفايل
+                          </h4>
+                          <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                            formData.showProfilePicture !== false
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-amber-100 text-amber-800 border border-amber-200'
+                          }`}>
+                            {formData.showProfilePicture !== false ? 'مفعل (الصورة ظاهرة)' : 'معطل (الصورة مخفية)'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                          عند التفعيل: تظهر صورتك على إعلاناتك وملفك. عند التعطيل: تُحجب صورتك ويتم استبدالها برمز درع الحماية لضمان الخصوصية.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = formData.showProfilePicture === false ? true : false;
+                          const updated = { ...formData, showProfilePicture: next };
+                          setFormData(updated);
+                          onUpdateUserProfile(updated);
+                        }}
+                        className={`w-12 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer shrink-0 ${
+                          formData.showProfilePicture !== false ? 'bg-blue-600' : 'bg-slate-300'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                            formData.showProfilePicture !== false ? 'translate-x-0' : '-translate-x-6'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Setting 2: Profile Picture Editor Trigger Card */}
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={formData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                          alt={formData.name}
+                          className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-200 shadow-xs shrink-0"
+                        />
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900">صورة الحساب الحالية</h4>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            يمكنك رفع صورتك الخاصة من جهازك أو الاختيار من مكتبة الصور الجاهزة.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-300 flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-blue-600" />
+                          <span>رفع من الجهاز</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsAvatarPickerOpen(true)}
+                          className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>تغيير الصورة</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Setting 3: Design Theme Selector */}
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5">
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                          اختر النمط اللوني لبطاقة حسابك
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          يحدد هذا النمط شكل وتمييز ملفك المهني وإعلاناتك أمام العملاء.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                        {[
+                          { id: 'classic_blue', name: 'الأزرق الاحترافي', color: 'from-blue-600 to-indigo-800', border: 'border-blue-500' },
+                          { id: 'royal_gold', name: 'الذهبي الملكي', color: 'from-amber-600 to-orange-800', border: 'border-amber-500' },
+                          { id: 'emerald_pro', name: 'الأخضر الماسي', color: 'from-emerald-600 to-teal-800', border: 'border-emerald-500' },
+                          { id: 'slate_dark', name: 'الرمادي العصري', color: 'from-slate-700 to-slate-900', border: 'border-slate-600' }
+                        ].map((theme) => {
+                          const isSelected = (formData.designTheme || 'classic_blue') === theme.id;
+                          return (
+                            <div
+                              key={theme.id}
+                              onClick={() => {
+                                const updated = { ...formData, designTheme: theme.id as any };
+                                setFormData(updated);
+                                onUpdateUserProfile(updated);
+                              }}
+                              className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 text-center ${
+                                isSelected
+                                  ? `${theme.border} bg-blue-50/50 shadow-sm ring-2 ring-blue-400`
+                                  : 'border-slate-200 bg-white hover:border-slate-300'
+                              }`}
+                            >
+                              <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${theme.color} shadow-xs flex items-center justify-center text-white`}>
+                                {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
+                              </div>
+                              <span className="text-xs font-black text-slate-900">{theme.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Setting 4: Quick Action to Follow and Monitor Works */}
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-black text-indigo-950">متابعة أعمالك وإعلاناتك النشطة</h4>
+                        <p className="text-[10.5px] text-indigo-700 font-medium mt-0.5">
+                          لديك حالياً {myPosts.length} أعمال وإعلانات منشورة يمكنك مراقبتها وتوليد شفرات HTML لها.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('myPosts')}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-xs cursor-pointer shrink-0"
+                      >
+                        عرض أعمالي ({myPosts.length})
+                      </button>
+                    </div>
+
+                    {/* Save Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleSaveProfile(e)}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs sm:text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>حفظ ضبط التصميم والمظهر بنجاح</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* TAB: EDIT PROFILE & DETAILS */}
                 {activeTab === 'editProfile' && (
                   <form onSubmit={handleSaveProfile} className="space-y-4">
@@ -1530,6 +1808,118 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 {embedCopied ? <Check className="w-4 h-4 text-white stroke-[3]" /> : <Copy className="w-4 h-4" />}
                 <span>{embedCopied ? 'تم نسخ كود الـ HTML إلى الحافظة بنجاح!' : 'نسخ كود الـ HTML'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden File Input for Avatar Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleAvatarFileUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Avatar Picker Modal */}
+      {isAvatarPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsAvatarPickerOpen(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">تغيير صورة البروفايل</h3>
+                  <span className="text-[10px] text-slate-500 font-medium">اختر صورة أو ارفع صورتك الخاصة</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAvatarPickerOpen(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-4">
+              {/* Device Upload Option */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="p-4 rounded-2xl border-2 border-dashed border-blue-300 hover:border-blue-500 bg-blue-50/50 hover:bg-blue-50 transition-all cursor-pointer flex items-center gap-3 group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 group-hover:text-blue-700">
+                    رفع صورة مباشرة من جهازك
+                  </h4>
+                  <p className="text-[10.5px] text-slate-500 mt-0.5">
+                    اختر أي صورة من الهاتف أو الكمبيوتر (JPG, PNG, WebP)
+                  </p>
+                </div>
+              </div>
+
+              {/* Preset Avatars Gallery */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  أو اختر من الصور والتصاميم الجاهزة:
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {PRESET_AVATARS.map((preset, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleSelectPresetAvatar(preset.url)}
+                      className="p-2 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all cursor-pointer flex flex-col items-center gap-1.5 group"
+                    >
+                      <img
+                        src={preset.url}
+                        alt={preset.label}
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-200 group-hover:scale-105 transition-transform"
+                      />
+                      <span className="text-[10px] font-bold text-slate-700 text-center truncate w-full">
+                        {preset.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Direct URL Input */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  أو أدخل رابط صورة مخصص (URL):
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    value={customAvatarUrl}
+                    onChange={(e) => setCustomAvatarUrl(e.target.value)}
+                    placeholder="https://example.com/avatar.jpg"
+                    className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-600 dir-ltr"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCustomAvatarUrl}
+                    disabled={!customAvatarUrl.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-black transition-colors shrink-0 cursor-pointer"
+                  >
+                    تطبيق
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

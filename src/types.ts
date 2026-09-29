@@ -77,6 +77,11 @@ export interface UserProfile {
   coinsBalance?: number;
   d1SyncId?: string;
   crossPlatformLinked?: boolean;
+  // Design & Privacy Preferences (واجهة ضبط التصميم)
+  showProfilePicture?: boolean; // خيار عرض صورة خاصة بالبروفايل أو استخدام شارة رمزية
+  designTheme?: 'classic_blue' | 'royal_gold' | 'emerald_pro' | 'slate_dark';
+  showContactButtons?: boolean;
+  showVerifiedBadge?: boolean;
 }
 
 export const EMPTY_GUEST_PROFILE: UserProfile = {

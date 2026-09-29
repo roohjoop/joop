@@ -53,7 +53,7 @@ import {
 } from './utils/adsManager';
 import { applyPageSeo, pingMainPortalArchive } from './utils/seoAndRouting';
 import { syncUserWithCloudflareD1, syncJobPostToFirebase, syncReportToFirebase } from './utils/cloudSync';
-import { grantAccountWelcomeCoins } from './utils/coinsEngine';
+import { grantAccountWelcomeCoins, initSessionCoinsTracker } from './utils/coinsEngine';
 import { syncEmailGlobally, archiveRouteInstant, injectGoogleJobsSchema } from './services/centralSyncService';
 import { 
   subscribeToFirestorePosts, 
@@ -234,6 +234,7 @@ export default function App() {
   // Ensure Firebase session and sync user profile on authentication state changes
   useEffect(() => {
     initAdCooldownSessionBaseline();
+    initSessionCoinsTracker();
     ensureFirebaseAuth().catch((err) => console.warn('Firebase boot session notice:', err));
 
     const unsubscribe = subscribeToAuth(async (fbUser) => {

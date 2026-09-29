@@ -14,6 +14,8 @@ const STORAGE_KEY_COINS = 'rooh_user_coins_balance';
 const STORAGE_KEY_WELCOME_GRANTED = 'rooh_welcome_coins_granted_v2';
 const STORAGE_KEY_SYNCED_EMAIL = 'rooh_ad_synced_email';
 const STORAGE_KEY_SYNCED_TS = 'rooh_ad_synced_timestamp';
+const STORAGE_KEY_SESSION_AWARDED = 'rooh_session_coins_awarded_id';
+const STORAGE_KEY_SESSION_VISITS = 'rooh_total_sessions_count';
 
 // Get current coin balance (default initial gift 50 coins)
 export function getStoredCoins(): number {
@@ -39,6 +41,55 @@ export function saveStoredCoins(amount: number): void {
     window.dispatchEvent(new CustomEvent('rooh_coins_updated', { detail: { coins: safeAmount } }));
   } catch (err) {
     console.warn('Failed to save coins:', err);
+  }
+}
+
+// Track and initialize session. User earns +50 coins for their completed session in the app.
+export function initSessionCoinsTracker(): void {
+  try {
+    // Generate or get existing session ID for this browser tab/session
+    let sessionId = sessionStorage.getItem('rooh_session_token');
+    if (!sessionId) {
+      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+      sessionStorage.setItem('rooh_session_token', sessionId);
+      
+      // Increment total sessions count
+      const totalVisits = parseInt(localStorage.getItem(STORAGE_KEY_SESSION_VISITS) || '0', 10) + 1;
+      localStorage.setItem(STORAGE_KEY_SESSION_VISITS, totalVisits.toString());
+    }
+
+    // Award +50 coins when leaving or finishing the session
+    const handleSessionExit = () => {
+      completeSessionAndAwardCoins();
+    };
+
+    window.addEventListener('beforeunload', handleSessionExit);
+    window.addEventListener('pagehide', handleSessionExit);
+  } catch (err) {
+    console.warn('Session tracker error:', err);
+  }
+}
+
+// Complete session and award exactly 50 coins for the session (only once per session)
+export function completeSessionAndAwardCoins(): { awarded: boolean; coins: number } {
+  try {
+    const sessionId = sessionStorage.getItem('rooh_session_token');
+    if (!sessionId) return { awarded: false, coins: getStoredCoins() };
+
+    const lastAwardedSession = localStorage.getItem(STORAGE_KEY_SESSION_AWARDED);
+    if (lastAwardedSession === sessionId) {
+      // Already awarded for this session
+      return { awarded: false, coins: getStoredCoins() };
+    }
+
+    // Award 50 coins for completing this app session
+    localStorage.setItem(STORAGE_KEY_SESSION_AWARDED, sessionId);
+    const current = getStoredCoins();
+    const next = current + 50;
+    saveStoredCoins(next);
+    return { awarded: true, coins: next };
+  } catch {
+    return { awarded: false, coins: getStoredCoins() };
   }
 }
 
