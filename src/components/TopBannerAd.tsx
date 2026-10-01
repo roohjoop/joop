@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, ExternalLink, X, ShieldAlert, ChevronDown, ChevronUp, Play, Volume2, VolumeX } from 'lucide-react';
-import { getDeveloperAdsState, DeveloperAdsState, DeveloperBannerAd } from '../utils/adsManager';
+import { Download, ExternalLink, X, ShieldAlert, ChevronDown, ChevronUp, Play, Volume2, VolumeX, Phone, MessageCircle } from 'lucide-react';
+import { getDeveloperAdsState, DeveloperAdsState, DeveloperBannerAd, isAdEligibleToShow, recordAdView, recordAdClick } from '../utils/adsManager';
+import { subscribeToDeveloperBanners } from '../firebase/services';
 import { AdReportModal } from './AdReportModal';
+import { AdVideoPlayer } from './AdVideoPlayer';
 
 interface TopBannerAdProps {
   onAdClick?: (ad: any) => void;
@@ -184,11 +186,34 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
     };
 
     window.addEventListener('rooh_ads_config_changed', handleConfigChange);
-    return () => window.removeEventListener('rooh_ads_config_changed', handleConfigChange);
+
+    // Real-time synchronization from Firebase Firestore
+    const unsubscribeBanners = subscribeToDeveloperBanners((remoteBanners) => {
+      if (remoteBanners && remoteBanners.length > 0) {
+        setAdsState(prev => {
+          const updated = { ...prev, customBanners: remoteBanners };
+          localStorage.setItem('rooh_developer_ads_config', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    });
+
+    return () => {
+      window.removeEventListener('rooh_ads_config_changed', handleConfigChange);
+      if (typeof unsubscribeBanners === 'function') unsubscribeBanners();
+    };
   }, []);
 
-  // Filter active banners
-  const activeBanners = (adsState.customBanners || []).filter(b => b.active);
+  // Filter active and non-capped banners using isAdEligibleToShow
+  const activeBanners = (adsState.customBanners || []).filter(isAdEligibleToShow);
+
+  // Record ad view whenever the displayed ad changes
+  const currentBanner: DeveloperBannerAd | undefined = activeBanners[currentAdIndex] || activeBanners[0];
+  useEffect(() => {
+    if (currentBanner?.id) {
+      recordAdView(currentBanner.id);
+    }
+  }, [currentBanner?.id]);
 
   // Close banner handler: Hides current banner and shows a DIFFERENT ad after exactly 3 seconds
   const handleCloseBanner = (e?: React.MouseEvent) => {
@@ -280,8 +305,6 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   }
 
   // 3. Custom Developer Banners Mode
-  const currentBanner: DeveloperBannerAd | undefined = activeBanners[currentAdIndex] || activeBanners[0];
-
   if (!currentBanner) return null;
 
   // Determine current active theme (Red, Blue, Yellow)
@@ -303,9 +326,20 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
   const resolvedYouTubeEmbed = isYoutube ? getYouTubeEmbedUrl(rawVideoUrl, isMuted) : '';
 
   const handleBannerClick = () => {
+    if (currentBanner?.id) {
+      recordAdClick(currentBanner.id);
+    }
     if (onAdClick) {
       onAdClick(currentBanner);
-    } else if (currentBanner.targetUrl) {
+    } else if (currentBanner.buttonAction === 'whatsapp' || currentBanner.buttonType === 'whatsapp' || currentBanner.whatsappNumber || currentBanner.phoneNumber) {
+      const num = currentBanner.whatsappNumber || currentBanner.phoneNumber || '';
+      const cleanPhone = num.replace(/[^\d+]/g, '');
+      if (cleanPhone) {
+        window.open(`https://wa.me/${cleanPhone}`, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    if (currentBanner.targetUrl) {
       window.open(currentBanner.targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
@@ -337,7 +371,7 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
               {/* Scaled Square Image: 3px from top & 3px from bottom */}
               <div className={`w-[197px] h-[197px] min-w-[197px] min-h-[197px] aspect-square rounded-2xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 shadow-xl relative`}>
                 <img 
-                  src={currentBanner.imageUrl || '/icon.svg'} 
+                  src={currentBanner.customIconUrl || currentBanner.imageUrl || '/icon.svg'} 
                   alt={currentBanner.title}
                   className="w-full h-full object-cover"
                 />
@@ -369,50 +403,36 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
                 onClick={(e) => e.stopPropagation()}
                 className="w-[350px] min-w-[350px] max-w-[350px] aspect-video h-[197px] rounded-xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative flex items-center justify-center shrink-0"
               >
-                {isYoutube ? (
-                  <iframe
-                    src={resolvedYouTubeEmbed}
-                    title={currentBanner.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    className="w-full h-full border-0"
-                  />
-                ) : (
-                  <div className="relative w-full h-full aspect-video flex items-center justify-center bg-black">
-                    <video
-                      ref={videoRef}
-                      src={rawVideoUrl}
-                      autoPlay
-                      playsInline
-                      muted={isMuted}
-                      loop
-                      className="w-full h-full object-contain mx-auto bg-black"
-                    />
-                    <div className="absolute top-2 left-2 z-30">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsMuted(prev => !prev);
-                        }}
-                        className={`p-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
-                          isMuted 
-                            ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400' 
-                            : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white'
-                        }`}
-                        title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                      >
-                        {isMuted ? <VolumeX className="w-4 h-4 stroke-[2]" /> : <Volume2 className="w-4 h-4 stroke-[2]" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <AdVideoPlayer
+                  videoUrl={rawVideoUrl}
+                  posterImage={currentBanner.imageUrl}
+                  title={currentBanner.title}
+                  isMuted={isMuted}
+                  autoPlay={true}
+                  className="w-full h-full"
+                  aspectRatio="video"
+                />
               </div>
             </div>
 
-            {/* Left: Actions (Download Button placed beside the collapse arrow, Report, AD badge, Close X) */}
-            <div className="flex items-center justify-end gap-3 h-[197px]">
-              {/* زر التحميل بجانب السهم الذي يغلق/يطوي الإعلان */}
+            {/* Left: Actions (Download / Link Button, Direct Phone / WhatsApp button, Report, AD badge, Close X) */}
+            <div className="flex items-center justify-end gap-2.5 h-[197px]">
+              {/* Optional Direct Contact Phone / WhatsApp button */}
+              {currentBanner.phoneNumber && (
+                <a
+                  href={`https://wa.me/${currentBanner.phoneNumber.replace(/[^\d+]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shrink-0 border border-emerald-400"
+                  title={`تواصل مع المعلن: ${currentBanner.phoneNumber}`}
+                >
+                  <MessageCircle className="w-4 h-4 text-emerald-100" />
+                  <span className="whitespace-nowrap">واتساب / هاتف</span>
+                </a>
+              )}
+
+              {/* زر التحميل أو الانتقال للرابط المستهدف */}
               <button
                 type="button"
                 onClick={handleBannerClick}
@@ -475,49 +495,20 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
           {/* MOBILE VIEW (<md): Video 350px at TOP, and Icon / Window shifted DOWN */}
           <div className="md:hidden flex flex-col items-center w-full p-2 gap-2">
             
-            {/* Top: 350px YouTube Video Player from right to left */}
+            {/* Top: 350px Professional Video Player (YouTube / Facebook / TikTok / MP4) */}
             <div 
               onClick={(e) => e.stopPropagation()}
               className="w-[350px] max-w-[350px] aspect-video rounded-xl overflow-hidden border-2 border-slate-700 bg-black shadow-2xl relative flex items-center justify-center mx-auto shrink-0"
             >
-              {isYoutube ? (
-                <iframe
-                  src={resolvedYouTubeEmbed}
-                  title={currentBanner.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              ) : (
-                <div className="relative w-full h-full aspect-video flex items-center justify-center bg-black">
-                  <video
-                    ref={videoRef}
-                    src={rawVideoUrl}
-                    autoPlay
-                    playsInline
-                    muted={isMuted}
-                    loop
-                    className="w-full h-full object-contain mx-auto bg-black"
-                  />
-                  <div className="absolute top-2 left-2 z-30">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMuted(prev => !prev);
-                      }}
-                      className={`p-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
-                        isMuted 
-                          ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400' 
-                          : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white'
-                      }`}
-                      title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                    >
-                      {isMuted ? <VolumeX className="w-3.5 h-3.5 stroke-[2]" /> : <Volume2 className="w-3.5 h-3.5 stroke-[2]" />}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <AdVideoPlayer
+                videoUrl={rawVideoUrl}
+                posterImage={currentBanner.imageUrl}
+                title={currentBanner.title}
+                isMuted={isMuted}
+                autoPlay={true}
+                className="w-full h-full"
+                aspectRatio="video"
+              />
             </div>
 
             {/* Bottom Bar: Icon and Window Info shifted DOWN below the 350px video */}
@@ -544,6 +535,19 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
 
               {/* Left: Actions */}
               <div className="flex items-center gap-1 shrink-0">
+                {currentBanner.phoneNumber && (
+                  <a
+                    href={`https://wa.me/${currentBanner.phoneNumber.replace(/[^\d+]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black flex items-center gap-1 shadow-sm shrink-0 border border-emerald-400"
+                    title="واتساب / هاتف"
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    <span>تواصل</span>
+                  </a>
+                )}
                 <button
                   type="button"
                   onClick={handleBannerClick}
@@ -644,7 +648,7 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
             {/* Right: 58x58 Square Image */}
             <div className={`w-[56px] h-[56px] min-w-[56px] min-h-[56px] rounded-xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 flex items-center justify-center relative shadow-md self-center`}>
               <img 
-                src={currentBanner.imageUrl || '/icon.svg'} 
+                src={currentBanner.customIconUrl || currentBanner.imageUrl || '/icon.svg'} 
                 alt={currentBanner.title}
                 className="w-full h-full object-cover"
               />
@@ -744,7 +748,7 @@ export const TopBannerAd: React.FC<TopBannerAdProps> = ({ onAdClick }) => {
             <div className="flex items-center gap-3.5 min-w-0 max-w-[42%] lg:max-w-[45%] h-full py-1">
               <div className={`w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded-xl overflow-hidden border-2 ${theme.imageBorder} shrink-0 bg-slate-900 flex items-center justify-center relative shadow-md self-center`}>
                 <img 
-                  src={currentBanner.imageUrl || '/icon.svg'} 
+                  src={currentBanner.customIconUrl || currentBanner.imageUrl || '/icon.svg'} 
                   alt={currentBanner.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

@@ -22,9 +22,11 @@ import {
   ShieldAlert,
   Copy,
   ExternalLink,
-  Share2
+  Share2,
+  Globe
 } from 'lucide-react';
 import { JobPost, UserProfile } from '../types';
+import { AboutPlatformWebViewModal } from './AboutPlatformWebViewModal';
 import { 
   FIFTEEN_LEGAL_CLAUSES, 
   LegalClause 
@@ -75,6 +77,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   const [userCheckedAgreed, setUserCheckedAgreed] = useState<boolean>(() => {
     return localStorage.getItem('shoghl_policy_accepted') === 'true';
   });
+  const [isAboutWebViewOpen, setIsAboutWebViewOpen] = useState(false);
 
   // Filtered 15 clauses
   const filteredClauses = useMemo(() => {
@@ -153,11 +156,12 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-hidden animate-in fade-in duration-150 select-none"
-      onClick={onClose}
-      dir="rtl"
-    >
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs overflow-hidden animate-in fade-in duration-150 select-none"
+        onClick={onClose}
+        dir="rtl"
+      >
       <div
         className="w-full h-[100dvh] sm:h-auto sm:max-w-xl md:sm:max-w-2xl sm:max-h-[86vh] bg-white border-0 sm:border sm:border-slate-200 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -436,6 +440,27 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
                 </p>
               </div>
 
+              {/* Button to navigate to rohpro.com/me */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-amber-400">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-amber-100" />
+                    <h4 className="text-xs sm:text-sm font-black">الانتقال إلى منصة من نحن الرئيسية (rohpro.com/me)</h4>
+                  </div>
+                  <p className="text-[11px] text-amber-100 font-medium leading-relaxed">
+                    منصة كاملة وشاملة خاصة بنا لعرض كامل المنظومة والرؤية والأهداف.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAboutWebViewOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-white text-orange-950 font-black text-xs shadow-md hover:bg-amber-50 flex items-center gap-2 transition-all cursor-pointer shrink-0 active:scale-95"
+                >
+                  <ExternalLink className="w-4 h-4 text-orange-600" />
+                  <span>فتح المنصة الرئيسية</span>
+                </button>
+              </div>
+
               {/* Disclaimer highlight */}
               <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-start gap-2 text-slate-700">
                 <ShieldAlert className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
@@ -603,5 +628,13 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({
 
       </div>
     </div>
+
+    {/* Dedicated WebView with floating return button */}
+    <AboutPlatformWebViewModal
+      isOpen={isAboutWebViewOpen}
+      onClose={() => setIsAboutWebViewOpen(false)}
+      targetUrl="https://roohpro.com/me"
+    />
+  </>
   );
 };

@@ -63,6 +63,7 @@ import {
   syncUserProfileToFirestore,
   saveUserProfileToFirestore,
   getUserProfileFromFirestore,
+  getUserPostsFromFirestore,
   subscribeToAuth,
   ensureFirebaseAuth
 } from './firebase/services';
@@ -277,7 +278,7 @@ export default function App() {
     return accountsData[activeAccountEmail]?.savedPostIds || [];
   }, [activeAccountEmail, accountsData]);
 
-  // Handle account login/connection with direct Firebase Firestore synchronization
+  // Handle account login/connection with direct Firebase Firestore synchronization and complete data restoration
   const handleConnectAccount = async (
     email: string, 
     intent: 'employer' | 'seeker' = 'employer',
@@ -286,28 +287,78 @@ export default function App() {
     const cleanEmail = email.toLowerCase().trim();
     setActiveAccountEmail(cleanEmail);
 
+    // Save account to known accounts list for this device
+    try {
+      const knownRaw = localStorage.getItem('shoghl_known_accounts');
+      const knownList = knownRaw ? JSON.parse(knownRaw) : [];
+      if (!knownList.some((item: any) => item.email?.toLowerCase() === cleanEmail)) {
+        knownList.unshift({
+          email: cleanEmail,
+          name: googleUserData?.displayName || cleanEmail.split('@')[0],
+          avatar: googleUserData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          lastLinkedAt: new Date().toISOString()
+        });
+        localStorage.setItem('shoghl_known_accounts', JSON.stringify(knownList));
+      }
+    } catch (e) {
+      console.warn('Known accounts error:', e);
+    }
+
+    // 1. Fetch remote user profile from Firebase Firestore if available
+    let remoteProfile: UserProfile | null = null;
+    try {
+      remoteProfile = await getUserProfileFromFirestore(cleanEmail);
+    } catch (err) {
+      console.warn('Firestore profile fetch notice:', err);
+    }
+
+    // 2. Fetch all remote posts created by this email from Firebase Firestore
+    let remotePosts: JobPost[] = [];
+    try {
+      remotePosts = await getUserPostsFromFirestore(cleanEmail);
+    } catch (err) {
+      console.warn('Firestore posts fetch notice:', err);
+    }
+
+    // 3. Merge remote posts into local posts state and localStorage so user can view, edit, and delete them
+    if (remotePosts && remotePosts.length > 0) {
+      setPosts((prev) => {
+        const merged = [...prev];
+        for (const rp of remotePosts) {
+          const idx = merged.findIndex(p => p.id === rp.id);
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...rp, creatorEmail: cleanEmail };
+          } else {
+            merged.unshift({ ...rp, creatorEmail: cleanEmail });
+          }
+        }
+        localStorage.setItem('shoghl_posts', JSON.stringify(merged));
+        return merged;
+      });
+    }
+
     let profileToSave: UserProfile | null = null;
 
     setAccountsData((prev) => {
       const existing = prev[cleanEmail];
-      if (existing) {
-        profileToSave = existing.profile;
-        return prev;
-      }
+      const baseProfile = remoteProfile || existing?.profile;
+
       const newProfile: UserProfile = {
-        name: googleUserData?.displayName || cleanEmail.split('@')[0],
-        role: intent === 'employer' ? 'صاحب عمل / معلن وظائف' : 'باحث عن عمل / مهني وفني',
-        avatar: googleUserData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        phone: '',
-        whatsapp: '',
-        address: '',
-        city: 'الإسكندرية',
-        country: 'مصر',
-        bio: '',
+        name: baseProfile?.name || googleUserData?.displayName || cleanEmail.split('@')[0],
+        role: baseProfile?.role || (intent === 'employer' ? 'صاحب عمل / معلن وظائف' : 'باحث عن عمل / مهني وفني'),
+        avatar: baseProfile?.avatar || googleUserData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        phone: baseProfile?.phone || '',
+        whatsapp: baseProfile?.whatsapp || '',
+        address: baseProfile?.address || '',
+        city: baseProfile?.city || 'الإسكندرية',
+        country: baseProfile?.country || 'مصر',
+        bio: baseProfile?.bio || '',
         verified: true,
         email: cleanEmail,
-        coinsBalance: 50,
+        coinsBalance: (baseProfile?.coinsBalance !== undefined && baseProfile.coinsBalance > 0) ? baseProfile.coinsBalance : 50,
         userIntent: intent,
+        showProfilePicture: baseProfile?.showProfilePicture !== undefined ? baseProfile.showProfilePicture : true,
+        designSettings: baseProfile?.designSettings || existing?.profile?.designSettings,
         connectedAccount: {
           email: cleanEmail,
           provider: googleUserData ? 'google' : 'email',
@@ -333,7 +384,7 @@ export default function App() {
         ...prev,
         [cleanEmail]: {
           profile: newProfile,
-          savedPostIds: []
+          savedPostIds: existing?.savedPostIds || []
         }
       };
     });
@@ -362,12 +413,22 @@ export default function App() {
       portalOrigin: 'jop'
     }).catch((e) => console.warn('Global user sync notice:', e));
 
-    triggerToast(`🎉 تم تسجيل الدخول شغل وتقنية بنجاح! حسابك آمن وتم منحك 50 كوين هدية (${cleanEmail})`);
+    triggerToast(`🎉 تم تسجيل الدخول واسترجاع بيانات الحساب بنجاح! حسابك نشط (${cleanEmail})`);
   };
 
   const handleDisconnectAccount = () => {
     setActiveAccountEmail('');
     triggerToast('تم تسجيل الخروج بنجاح');
+  };
+
+  const handleUpdatePost = (updated: JobPost) => {
+    setPosts((prev) => {
+      const next = prev.map((p) => p.id === updated.id ? { ...p, ...updated } : p);
+      localStorage.setItem('shoghl_posts', JSON.stringify(next));
+      return next;
+    });
+    savePostToFirestore(updated).catch((e) => console.warn('Firestore update error:', e));
+    triggerToast('تم حفظ وتحديث تفاصيل الإعلان بنجاح في قاعدة البيانات');
   };
 
   const handleUpdateUserProfile = async (updated: UserProfile) => {
@@ -1078,7 +1139,11 @@ export default function App() {
 
   const myPosts = useMemo(() => {
     if (!activeAccountEmail) return [];
-    return displayPosts.filter((p) => p.creatorEmail === activeAccountEmail);
+    const cleanActive = activeAccountEmail.toLowerCase().trim();
+    return displayPosts.filter((p) => {
+      const cEmail = (p.creatorEmail || (p as any).email || (p as any).authorEmail || '').toLowerCase().trim();
+      return cEmail === cleanActive;
+    });
   }, [displayPosts, activeAccountEmail]);
 
   const jobPostsCount = useMemo(() => posts.filter((p) => p.type === 'job').length, [posts]);
@@ -1560,6 +1625,7 @@ export default function App() {
         onToggleFollow={handleToggleFollow}
         allPosts={posts}
         onDeletePost={handleDeletePost}
+        onUpdatePost={handleUpdatePost}
       />
 
       {/* 9. Advertiser Profile Modal (عرض تفاصيل المعلن، وصف الوظيفة، الهاتف، العنوان، وإعلاناته الأخرى) */}

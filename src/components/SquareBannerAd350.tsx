@@ -10,11 +10,14 @@ import {
   Volume2,
   VolumeX,
   ShieldAlert,
-  Play
+  Play,
+  MessageCircle,
+  Phone
 } from 'lucide-react';
 import { getDeveloperAdsState, DeveloperAdsState, DeveloperBannerAd } from '../utils/adsManager';
+import { subscribeToDeveloperBanners } from '../firebase/services';
 import { AdReportModal } from './AdReportModal';
-import { isYouTubeUrl, getYouTubeEmbedUrl } from './TopBannerAd';
+import { AdVideoPlayer } from './AdVideoPlayer';
 
 interface SquareBannerAd350Props {
   className?: string;
@@ -37,7 +40,22 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
     };
 
     window.addEventListener('rooh_ads_config_changed', handleConfigChange);
-    return () => window.removeEventListener('rooh_ads_config_changed', handleConfigChange);
+
+    // Real-time synchronization from Firebase Firestore
+    const unsubscribeBanners = subscribeToDeveloperBanners((remoteBanners) => {
+      if (remoteBanners && remoteBanners.length > 0) {
+        setAdsState(prev => {
+          const updated = { ...prev, customBanners: remoteBanners };
+          localStorage.setItem('rooh_developer_ads_config', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    });
+
+    return () => {
+      window.removeEventListener('rooh_ads_config_changed', handleConfigChange);
+      if (typeof unsubscribeBanners === 'function') unsubscribeBanners();
+    };
   }, []);
 
   const activeBanners = (adsState.customBanners || []).filter(b => b.active);
@@ -137,7 +155,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
   if (!currentBanner) return null;
 
   const rawMedia = currentBanner.videoUrl || currentBanner.imageUrl || '';
-  const isYoutube = isYouTubeUrl(rawMedia);
+  const isYoutube = rawMedia.includes('youtube.com') || rawMedia.includes('youtu.be');
   const isVideo = isYoutube || currentBanner.mediaType === 'video' || Boolean(
     currentBanner.videoUrl || 
     (currentBanner.imageUrl && (currentBanner.imageUrl.endsWith('.mp4') || currentBanner.imageUrl.includes('sample/ForBigger') || currentBanner.imageUrl.includes('video')))
@@ -201,49 +219,18 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
           </div>
         </div>
 
-        {/* 2. Visual Media Section: Full 350px YouTube 16:9 Aspect Video Player */}
+        {/* 2. Visual Media Section: Professional Video / Image Player */}
         <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden shrink-0">
-          {isYoutube ? (
-            <iframe
-              src={getYouTubeEmbedUrl(mediaSource, isMuted)}
+          {isVideo || currentBanner.videoUrl ? (
+            <AdVideoPlayer
+              videoUrl={rawMedia}
+              posterImage={currentBanner.imageUrl}
               title={currentBanner.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full border-0"
+              isMuted={isMuted}
+              autoPlay={true}
+              className="w-full h-full"
+              aspectRatio="video"
             />
-          ) : isVideo ? (
-            <div className="relative w-full h-full flex items-center justify-center bg-black">
-              <video 
-                ref={videoRef}
-                src={mediaSource}
-                autoPlay
-                muted={isMuted}
-                loop
-                playsInline
-                className="w-full h-full object-cover"
-              />
-
-              {/* Mute/Unmute Audio Button: Icon ONLY without words */}
-              <button
-                type="button"
-                onClick={toggleSound}
-                className={`absolute top-2 left-2 z-20 p-2 rounded-full backdrop-blur-md border transition-all cursor-pointer shadow-md ${
-                  isMuted 
-                    ? 'bg-black/80 hover:bg-black border-yellow-400/80 text-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.4)]' 
-                    : 'bg-emerald-600/90 hover:bg-emerald-600 border-emerald-400 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-                }`}
-                title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                aria-label={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
-              >
-                {isMuted ? (
-                  <VolumeX className="w-3.5 h-3.5 stroke-[2.5]" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                )}
-              </button>
-
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
-            </div>
           ) : (
             <div className="relative w-full h-full">
               <img 
@@ -326,23 +313,38 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
               </div>
             )}
 
-            {/* 4. Action CTA Download / Install Button */}
-            <button
-              onClick={handleOpenAd}
-              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-            >
-              {currentBanner.buttonType === 'download' ? (
-                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-              ) : currentBanner.buttonType === 'install' ? (
-                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-              ) : (
-                <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+            {/* 4. Action CTA Download / Install / Contact Button */}
+            <div className="flex items-center gap-2">
+              {currentBanner.phoneNumber && (
+                <a
+                  href={`https://wa.me/${currentBanner.phoneNumber.replace(/[^\d+]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 border border-emerald-400"
+                  title={`تواصل مع المعلن: ${currentBanner.phoneNumber}`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">واتساب / هاتف</span>
+                </a>
               )}
-              <span>
-                {currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل الآن' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال')}
-              </span>
-              <ChevronLeft className="w-3.5 h-3.5 stroke-[3]" />
-            </button>
+
+              <button
+                onClick={handleOpenAd}
+                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                {currentBanner.buttonType === 'download' ? (
+                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                ) : currentBanner.buttonType === 'install' ? (
+                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+                )}
+                <span className="truncate">
+                  {currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل الآن' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال')}
+                </span>
+                <ChevronLeft className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+              </button>
+            </div>
           </div>
         </div>
 

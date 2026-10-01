@@ -80,6 +80,7 @@ export interface UserProfile {
   // Design & Privacy Preferences (واجهة ضبط التصميم)
   showProfilePicture?: boolean; // خيار عرض صورة خاصة بالبروفايل أو استخدام شارة رمزية
   designTheme?: 'classic_blue' | 'royal_gold' | 'emerald_pro' | 'slate_dark';
+  designSettings?: any;
   showContactButtons?: boolean;
   showVerifiedBadge?: boolean;
 }

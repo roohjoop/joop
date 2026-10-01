@@ -25,6 +25,7 @@ import {
 import { db, auth, googleProvider, handleFirestoreError, OperationType } from './config';
 import { JobPost, UserProfile } from '../types';
 import { SupportTicket, SupportChatMessage } from '../utils/supportManager';
+import { DeveloperBannerAd } from '../utils/adsManager';
 
 // -------------------------------------------------------------
 // Authentication
@@ -562,3 +563,88 @@ export async function addCommentToFirestore(comment: FirestoreComment): Promise<
     handleFirestoreError(error, OperationType.CREATE, path);
   }
 }
+
+// -------------------------------------------------------------
+// Developer Banners & Custom Ads Synchronization
+// -------------------------------------------------------------
+
+export async function saveDeveloperBannerToFirestore(banner: DeveloperBannerAd): Promise<void> {
+  const collectionPath = 'developer_banners';
+  const path = `${collectionPath}/${banner.id}`;
+  try {
+    await ensureFirebaseAuth();
+    const cleaned = sanitizeForFirestore({
+      ...banner,
+      serverUpdatedAt: serverTimestamp()
+    });
+    await setDoc(doc(db, collectionPath, banner.id), cleaned, { merge: true });
+    console.log(`[Firebase Firestore] Developer Banner "${banner.id}" saved successfully!`);
+  } catch (error) {
+    console.error(`[Firebase Firestore] Failed to save developer banner:`, error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteDeveloperBannerFromFirestore(bannerId: string): Promise<void> {
+  const collectionPath = 'developer_banners';
+  const path = `${collectionPath}/${bannerId}`;
+  try {
+    await ensureFirebaseAuth();
+    await deleteDoc(doc(db, collectionPath, bannerId));
+    console.log(`[Firebase Firestore] Developer Banner "${bannerId}" deleted!`);
+  } catch (error) {
+    console.error(`[Firebase Firestore] Failed to delete developer banner:`, error);
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export function subscribeToDeveloperBanners(
+  callback: (banners: DeveloperBannerAd[]) => void
+): () => void {
+  const collectionPath = 'developer_banners';
+  const q = query(collection(db, collectionPath));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const banners: DeveloperBannerAd[] = [];
+      snapshot.forEach((d) => {
+        banners.push(d.data() as DeveloperBannerAd);
+      });
+      callback(banners);
+    },
+    (error) => {
+      console.warn('[Firebase Firestore] Developer banners snapshot notice:', error);
+    }
+  );
+}
+
+// -------------------------------------------------------------
+// User Specific Posts Query & Restoration
+// -------------------------------------------------------------
+
+export async function getUserPostsFromFirestore(email: string): Promise<JobPost[]> {
+  const cleanEmail = email.trim().toLowerCase();
+  const collectionPath = 'posts';
+  const userPosts: JobPost[] = [];
+  try {
+    // 1. Query by creatorEmail
+    const q1 = query(collection(db, collectionPath), where('creatorEmail', '==', cleanEmail));
+    const snap1 = await getDocs(q1);
+    snap1.forEach(d => userPosts.push(d.data() as JobPost));
+
+    // 2. Query by authorEmail
+    const q2 = query(collection(db, collectionPath), where('authorEmail', '==', cleanEmail));
+    const snap2 = await getDocs(q2);
+    snap2.forEach(d => {
+      if (!userPosts.some(p => p.id === d.id)) {
+        userPosts.push(d.data() as JobPost);
+      }
+    });
+
+    return userPosts;
+  } catch (err) {
+    console.warn('[Firebase Firestore] Error querying user posts:', err);
+    return [];
+  }
+}
+

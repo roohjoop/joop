@@ -9,7 +9,9 @@
  * 5. Media storage integration (Cloudflare R2 & Firebase Firestore sync)
  */
 
-export type AdButtonType = 'install' | 'navigate' | 'download' | 'whatsapp';
+import { saveDeveloperBannerToFirestore, deleteDeveloperBannerFromFirestore } from '../firebase/services';
+
+export type AdButtonType = 'install' | 'navigate' | 'download' | 'whatsapp' | 'call';
 export type BannerColorTheme = 'auto' | 'red' | 'blue' | 'yellow';
 
 export interface DeveloperBannerAd {
@@ -19,15 +21,26 @@ export interface DeveloperBannerAd {
   mediaType?: 'image' | 'video';
   imageUrl: string;
   videoUrl?: string;
-  targetUrl: string;
+  customIconUrl?: string; // صورة مخصصة للأيقونة التي تظهر
+  targetUrl: string; // الرابط الخاص بالمنصة
+  phoneNumber?: string; // Contact phone / WhatsApp number for the ad
+  whatsappNumber?: string; // رقم الواتساب المباشر
+  showWhatsAppIcon?: boolean; // إمكانية إظهار أيقونة واتساب
   buttonType: AdButtonType;
   buttonLabel: string;
+  buttonAction?: 'whatsapp' | 'target_url' | 'call' | 'download' | 'install';
   colorTheme?: BannerColorTheme; // 'auto' | 'red' | 'blue' | 'yellow'
   active: boolean;
+  isPaused?: boolean; // توقف الحملة يدوياً أو عند بلوغ الحد الأقصى للمشاهدات أو النقرات
   expiresAt?: string; // ISO date string
   isUserCampaign?: boolean; // From roohpro.com/AD
-  viewsCount?: number;
-  clicksCount?: number;
+  viewsCount?: number; // عداد المشاهدات
+  clicksCount?: number; // عداد النقرات
+  maxViewsLimit?: number; // حد أقصى للمشاهدات (مثلاً 1000 أو 2000 ثم يتوقف تلقائياً)
+  maxClicksLimit?: number; // حد أقصى للنقرات
+  cookieTargeting?: string; // استهداف الكوكيز المجمعة من التطبيق والمنصة الرئيسية
+  createdAt?: string;
+  videoPlatform?: 'youtube' | 'facebook' | 'tiktok' | 'html5';
 }
 
 export interface InterstitialAdConfig {
@@ -441,7 +454,7 @@ export function saveDeveloperAdsState(newState: DeveloperAdsState): void {
 }
 
 /**
- * Add a new custom banner to developer ads
+ * Add a new custom banner to developer ads and sync with Firebase Firestore
  */
 export function addDeveloperBanner(banner: Omit<DeveloperBannerAd, 'id' | 'viewsCount' | 'clicksCount'>): DeveloperBannerAd {
   const current = getDeveloperAdsState();
@@ -449,24 +462,36 @@ export function addDeveloperBanner(banner: Omit<DeveloperBannerAd, 'id' | 'views
     ...banner,
     id: `banner-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
     viewsCount: 0,
-    clicksCount: 0
+    clicksCount: 0,
+    createdAt: new Date().toISOString()
   };
   current.customBanners.unshift(newBanner);
   saveDeveloperAdsState(current);
+
+  // Synchronize to Firebase Firestore
+  saveDeveloperBannerToFirestore(newBanner).catch(err => {
+    console.warn('[Firebase Firestore] Banner save notice:', err);
+  });
+
   return newBanner;
 }
 
 /**
- * Delete a custom banner
+ * Delete a custom banner and remove from Firebase Firestore
  */
 export function deleteDeveloperBanner(bannerId: string): void {
   const current = getDeveloperAdsState();
   current.customBanners = current.customBanners.filter(b => b.id !== bannerId);
   saveDeveloperAdsState(current);
+
+  // Delete from Firebase Firestore
+  deleteDeveloperBannerFromFirestore(bannerId).catch(err => {
+    console.warn('[Firebase Firestore] Banner delete notice:', err);
+  });
 }
 
 /**
- * Toggle banner active status
+ * Toggle banner active status and sync with Firebase Firestore
  */
 export function toggleBannerStatus(bannerId: string, active: boolean): void {
   const current = getDeveloperAdsState();
@@ -474,5 +499,205 @@ export function toggleBannerStatus(bannerId: string, active: boolean): void {
   if (target) {
     target.active = active;
     saveDeveloperAdsState(current);
+
+    saveDeveloperBannerToFirestore(target).catch(err => {
+      console.warn('[Firebase Firestore] Banner status update notice:', err);
+    });
   }
 }
+
+/**
+ * Merge remote banners retrieved from Firebase Firestore with local state
+ */
+export function mergeFirestoreBanners(remoteBanners: DeveloperBannerAd[]): void {
+  if (!remoteBanners || remoteBanners.length === 0) return;
+  const current = getDeveloperAdsState();
+  const map = new Map<string, DeveloperBannerAd>();
+  // Prioritize remote Firestore banners
+  remoteBanners.forEach(b => map.set(b.id, b));
+  // Keep local custom banners if any exist
+  current.customBanners.forEach(b => {
+    if (!map.has(b.id)) {
+      map.set(b.id, b);
+    }
+  });
+  current.customBanners = Array.from(map.values());
+  saveDeveloperAdsState(current);
+}
+
+/**
+ * Checks whether an ad is eligible to show:
+ * 1. Must be active
+ * 2. Must not be paused
+ * 3. Must not have exceeded maxViewsLimit
+ * 4. Must not have exceeded maxClicksLimit
+ */
+export function isAdEligibleToShow(ad: DeveloperBannerAd): boolean {
+  if (!ad || !ad.active) return false;
+  if (ad.isPaused) return false;
+  if (ad.maxViewsLimit !== undefined && ad.maxViewsLimit > 0 && (ad.viewsCount || 0) >= ad.maxViewsLimit) {
+    return false;
+  }
+  if (ad.maxClicksLimit !== undefined && ad.maxClicksLimit > 0 && (ad.clicksCount || 0) >= ad.maxClicksLimit) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Increments the views count for an ad. If it reaches maxViewsLimit, it auto-pauses
+ * and synchronizes with Firebase Firestore.
+ */
+export function recordAdView(adId: string): void {
+  try {
+    const current = getDeveloperAdsState();
+    const target = current.customBanners.find(b => b.id === adId);
+    if (!target) return;
+
+    target.viewsCount = (target.viewsCount || 0) + 1;
+
+    // Check if views limit cap reached
+    if (target.maxViewsLimit !== undefined && target.maxViewsLimit > 0 && target.viewsCount >= target.maxViewsLimit) {
+      target.isPaused = true;
+      target.active = false;
+      console.log(`[Ad Capping] Ad "${target.title}" reached max views limit (${target.maxViewsLimit}). Auto-paused.`);
+    }
+
+    saveDeveloperAdsState(current);
+    saveDeveloperBannerToFirestore(target).catch(e => console.warn('Firestore ad view sync notice:', e));
+  } catch (err) {
+    console.warn('recordAdView notice:', err);
+  }
+}
+
+/**
+ * Increments the clicks count for an ad. If it reaches maxClicksLimit, it auto-pauses
+ * and synchronizes with Firebase Firestore.
+ */
+export function recordAdClick(adId: string): void {
+  try {
+    const current = getDeveloperAdsState();
+    const target = current.customBanners.find(b => b.id === adId);
+    if (!target) return;
+
+    target.clicksCount = (target.clicksCount || 0) + 1;
+
+    // Check if clicks limit cap reached
+    if (target.maxClicksLimit !== undefined && target.maxClicksLimit > 0 && target.clicksCount >= target.maxClicksLimit) {
+      target.isPaused = true;
+      target.active = false;
+      console.log(`[Ad Capping] Ad "${target.title}" reached max clicks limit (${target.maxClicksLimit}). Auto-paused.`);
+    }
+
+    saveDeveloperAdsState(current);
+    saveDeveloperBannerToFirestore(target).catch(e => console.warn('Firestore ad click sync notice:', e));
+  } catch (err) {
+    console.warn('recordAdClick notice:', err);
+  }
+}
+
+/**
+ * Updates campaign limits or resume/pause state for a specific ad
+ */
+export function updateAdLimits(
+  adId: string, 
+  updates: { 
+    maxViewsLimit?: number; 
+    maxClicksLimit?: number; 
+    isPaused?: boolean;
+    active?: boolean;
+    title?: string;
+    videoUrl?: string;
+    targetUrl?: string;
+    whatsappNumber?: string;
+  }
+): void {
+  const current = getDeveloperAdsState();
+  const target = current.customBanners.find(b => b.id === adId);
+  if (!target) return;
+
+  if (updates.maxViewsLimit !== undefined) target.maxViewsLimit = updates.maxViewsLimit;
+  if (updates.maxClicksLimit !== undefined) target.maxClicksLimit = updates.maxClicksLimit;
+  if (updates.isPaused !== undefined) target.isPaused = updates.isPaused;
+  if (updates.active !== undefined) target.active = updates.active;
+  if (updates.title !== undefined) target.title = updates.title;
+  if (updates.videoUrl !== undefined) target.videoUrl = updates.videoUrl;
+  if (updates.targetUrl !== undefined) target.targetUrl = updates.targetUrl;
+  if (updates.whatsappNumber !== undefined) target.whatsappNumber = updates.whatsappNumber;
+
+  // If user increased max limits beyond current counts and unpaused, reactivate
+  if (
+    !target.isPaused && 
+    (!target.maxViewsLimit || (target.viewsCount || 0) < target.maxViewsLimit) &&
+    (!target.maxClicksLimit || (target.clicksCount || 0) < target.maxClicksLimit)
+  ) {
+    target.active = true;
+  }
+
+  saveDeveloperAdsState(current);
+  saveDeveloperBannerToFirestore(target).catch(e => console.warn('Firestore ad limits update notice:', e));
+}
+
+/**
+ * Resets views and clicks stats for an ad to restart its campaign
+ */
+export function resetAdStats(adId: string): void {
+  const current = getDeveloperAdsState();
+  const target = current.customBanners.find(b => b.id === adId);
+  if (!target) return;
+
+  target.viewsCount = 0;
+  target.clicksCount = 0;
+  target.isPaused = false;
+  target.active = true;
+
+  saveDeveloperAdsState(current);
+  saveDeveloperBannerToFirestore(target).catch(e => console.warn('Firestore ad reset notice:', e));
+}
+
+/**
+ * Reads targeting cookies and user preferences collected from the application and main platform
+ */
+export function getPlatformTargetingCookies(): {
+  platformCookie: string;
+  interests: string[];
+  city?: string;
+  role?: string;
+} {
+  try {
+    let cookieVal = '';
+    const cookieMatch = document.cookie.match(/rooh_ad_target=([^;]+)/);
+    if (cookieMatch) {
+      cookieVal = decodeURIComponent(cookieMatch[1]);
+    } else {
+      cookieVal = localStorage.getItem('rooh_ad_target') || 'roohpro_main_ecosystem';
+    }
+
+    const savedRole = localStorage.getItem('shoghl_active_email') ? 'registered' : 'guest';
+    const lastCategory = localStorage.getItem('shoghl_last_category') || 'عام';
+
+    return {
+      platformCookie: cookieVal,
+      interests: [lastCategory, 'وظائف', 'خدمات', 'roohpro.com/ad'],
+      role: savedRole
+    };
+  } catch {
+    return {
+      platformCookie: 'roohpro_main_ecosystem',
+      interests: ['roohpro.com/ad']
+    };
+  }
+}
+
+/**
+ * Saves targeting cookies for the main ecosystem
+ */
+export function setPlatformCookie(tag: string): void {
+  try {
+    localStorage.setItem('rooh_ad_target', tag);
+    document.cookie = `rooh_ad_target=${encodeURIComponent(tag)}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch (e) {
+    console.warn('Cookie write notice:', e);
+  }
+}
+

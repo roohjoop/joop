@@ -37,7 +37,17 @@ import {
   Eye,
   Headphones,
   Send,
-  MessageSquare
+  MessageSquare,
+  BarChart3,
+  Play,
+  Reply,
+  Target,
+  TrendingUp,
+  ToggleLeft,
+  ToggleRight,
+  RotateCcw,
+  Edit3,
+  Save
 } from 'lucide-react';
 import { JobPost, UserProfile, ReportItem } from '../types';
 import { extractUnifiedPagePersons, PagePersonEntity } from '../data/legalPolicies';
@@ -64,7 +74,11 @@ import {
   deleteAdReport,
   isInterstitialAdConfiguredAndActive,
   isRewardedAdConfiguredAndActive,
-  isPlaceholderOrEmptyVideo
+  isPlaceholderOrEmptyVideo,
+  updateAdLimits,
+  resetAdStats,
+  getPlatformTargetingCookies,
+  isAdEligibleToShow
 } from '../utils/adsManager';
 import { 
   getAllSupportTickets, 
@@ -74,6 +88,7 @@ import {
 } from '../utils/supportManager';
 import { DeveloperJobSeederTab } from './DeveloperJobSeederTab';
 import { DeveloperSeekerSeederTab } from './DeveloperSeekerSeederTab';
+import { AdVideoPlayer } from './AdVideoPlayer';
 
 interface DeveloperDashboardModalProps {
   isOpen: boolean;
@@ -104,7 +119,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
   onAddListing,
   onBatchAddListings
 }) => {
-  const [activeTab, setActiveTab] = useState<'add_real_jobs' | 'add_real_seekers' | 'ads' | 'support' | 'persons' | 'reports' | 'credentials'>('add_real_jobs');
+  const [activeTab, setActiveTab] = useState<'add_real_jobs' | 'add_real_seekers' | 'platform_ads' | 'google_adsense' | 'ad_analytics' | 'ads' | 'support' | 'persons' | 'reports' | 'credentials'>('add_real_jobs');
 
   const jobPostsCount = useMemo(() => allPosts.filter(p => p.type === 'job').length, [allPosts]);
   const seekerPostsCount = useMemo(() => allPosts.filter(p => p.type === 'seeker').length, [allPosts]);
@@ -164,6 +179,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
     imageUrl: '',
     videoUrl: '',
     targetUrl: '',
+    phoneNumber: '',
     buttonType: 'download' as AdButtonType,
     buttonLabel: 'تحميل التطبيق الآن',
     colorTheme: 'auto' as BannerColorTheme,
@@ -182,17 +198,19 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
 
   const handleCreateNewBanner = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bannerForm.title.trim() || (!bannerForm.imageUrl.trim() && !bannerForm.videoUrl.trim())) return;
+    if (!bannerForm.title.trim()) return;
+    if (!bannerForm.imageUrl.trim() && !bannerForm.videoUrl.trim()) return;
 
     addDeveloperBanner({
       title: bannerForm.title.trim(),
       sponsorName: bannerForm.sponsorName.trim() || 'إعلان معتمد Rooh Pro',
-      mediaType: bannerForm.mediaType,
+      mediaType: bannerForm.videoUrl.trim() ? 'video' : bannerForm.mediaType,
       imageUrl: bannerForm.imageUrl.trim() || 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&auto=format&fit=crop&q=80',
       videoUrl: bannerForm.videoUrl.trim(),
       targetUrl: bannerForm.targetUrl.trim() || 'https://roohpro.com/AD',
+      phoneNumber: bannerForm.phoneNumber.trim(),
       buttonType: bannerForm.buttonType,
-      buttonLabel: bannerForm.buttonLabel.trim() || (bannerForm.buttonType === 'download' ? 'تحميل الآن' : bannerForm.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال للرابط'),
+      buttonLabel: bannerForm.buttonLabel.trim() || (bannerForm.buttonType === 'whatsapp' ? 'تواصل واتساب' : bannerForm.buttonType === 'download' ? 'تحميل الآن' : bannerForm.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال للرابط'),
       colorTheme: bannerForm.colorTheme,
       active: true,
       expiresAt: bannerForm.expiresAt
@@ -207,6 +225,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
       imageUrl: '',
       videoUrl: '',
       targetUrl: '',
+      phoneNumber: '',
       buttonType: 'download',
       buttonLabel: 'تحميل التطبيق الآن',
       colorTheme: 'auto',
@@ -225,6 +244,104 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
     toggleBannerStatus(id, active);
     setAdsState(getDeveloperAdsState());
   };
+
+  // Dedicated Video Ad Form State (إمكانية إضافة أكثر من إعلان فيديو مع التحكم الكامل في الأيقونة والزر والواتساب والحدود)
+  const [showAddVideoAdForm, setShowAddVideoAdForm] = useState(false);
+  const [videoAdForm, setVideoAdForm] = useState({
+    title: '',
+    sponsorName: '',
+    videoUrl: '',
+    customIconUrl: '',
+    imageUrl: '',
+    targetUrl: '',
+    phoneNumber: '',
+    showWhatsAppIcon: true,
+    buttonType: 'whatsapp' as AdButtonType,
+    buttonLabel: 'تواصل عبر واتساب الآن',
+    colorTheme: 'auto' as BannerColorTheme,
+    maxViewsLimit: 1000,
+    maxClicksLimit: 0,
+    expiresAt: '2026-12-31'
+  });
+
+  const handleCreateNewVideoAd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!videoAdForm.title.trim()) return;
+    if (!videoAdForm.videoUrl.trim()) return;
+
+    addDeveloperBanner({
+      title: videoAdForm.title.trim(),
+      sponsorName: videoAdForm.sponsorName.trim() || 'إعلان فيديو المنصة',
+      mediaType: 'video',
+      videoUrl: videoAdForm.videoUrl.trim(),
+      customIconUrl: videoAdForm.customIconUrl.trim() || undefined,
+      imageUrl: videoAdForm.imageUrl.trim() || 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&auto=format&fit=crop&q=80',
+      targetUrl: videoAdForm.targetUrl.trim() || 'https://roohpro.com/AD',
+      phoneNumber: videoAdForm.phoneNumber.trim(),
+      showWhatsAppIcon: videoAdForm.showWhatsAppIcon,
+      buttonType: videoAdForm.buttonType,
+      buttonLabel: videoAdForm.buttonLabel.trim() || (videoAdForm.buttonType === 'whatsapp' ? 'تواصل واتساب' : 'مشاهدة المزيد'),
+      colorTheme: videoAdForm.colorTheme,
+      maxViewsLimit: Number(videoAdForm.maxViewsLimit) > 0 ? Number(videoAdForm.maxViewsLimit) : undefined,
+      maxClicksLimit: Number(videoAdForm.maxClicksLimit) > 0 ? Number(videoAdForm.maxClicksLimit) : undefined,
+      active: true,
+      expiresAt: videoAdForm.expiresAt
+    });
+
+    setAdsState(getDeveloperAdsState());
+    setShowAddVideoAdForm(false);
+    setVideoAdForm({
+      title: '',
+      sponsorName: '',
+      videoUrl: '',
+      customIconUrl: '',
+      imageUrl: '',
+      targetUrl: '',
+      phoneNumber: '',
+      showWhatsAppIcon: true,
+      buttonType: 'whatsapp',
+      buttonLabel: 'تواصل عبر واتساب الآن',
+      colorTheme: 'auto',
+      maxViewsLimit: 1000,
+      maxClicksLimit: 0,
+      expiresAt: '2026-12-31'
+    });
+    setAdsSavedNotice(true);
+    setTimeout(() => setAdsSavedNotice(false), 2500);
+  };
+
+  // Limits Quick Edit State for Ad Analytics
+  const [editingAdLimitId, setEditingAdLimitId] = useState<string | null>(null);
+  const [tempViewsLimit, setTempViewsLimit] = useState<number>(1000);
+  const [tempClicksLimit, setTempClicksLimit] = useState<number>(0);
+
+  const handleStartEditAdLimits = (ad: DeveloperBannerAd) => {
+    setEditingAdLimitId(ad.id);
+    setTempViewsLimit(ad.maxViewsLimit || 1000);
+    setTempClicksLimit(ad.maxClicksLimit || 0);
+  };
+
+  const handleSaveAdLimits = (adId: string) => {
+    updateAdLimits(adId, {
+      maxViewsLimit: tempViewsLimit > 0 ? tempViewsLimit : undefined,
+      maxClicksLimit: tempClicksLimit > 0 ? tempClicksLimit : undefined,
+      isPaused: false,
+      active: true
+    });
+    setEditingAdLimitId(null);
+    setAdsState(getDeveloperAdsState());
+    setAdsSavedNotice(true);
+    setTimeout(() => setAdsSavedNotice(false), 2500);
+  };
+
+  const handleResetAdCounters = (adId: string) => {
+    resetAdStats(adId);
+    setAdsState(getDeveloperAdsState());
+    setAdsSavedNotice(true);
+    setTimeout(() => setAdsSavedNotice(false), 2500);
+  };
+
+  const targetingCookies = useMemo(() => getPlatformTargetingCookies(), [adsState]);
 
   // Approvals dynamic state
   const [approvalsList, setApprovalsList] = useState<PolicyApprovalRecord[]>(() => {
@@ -437,17 +554,53 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
 
           <button
             type="button"
-            onClick={() => setActiveTab('ads')}
+            onClick={() => setActiveTab('platform_ads')}
             className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
-              activeTab === 'ads'
+              activeTab === 'platform_ads' || activeTab === 'ads'
                 ? 'bg-gradient-to-r from-blue-600 to-red-600 text-white border-red-500 shadow-sm'
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-800 hover:border-blue-200'
             }`}
           >
             <Megaphone className="w-4 h-4" />
-            <span>إدارة الإعلانات والمساحات</span>
+            <span>إعلانات المنصة والفيديوهات</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-              activeTab === 'ads' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+              activeTab === 'platform_ads' || activeTab === 'ads' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+            }`}>
+              {adsState.customBanners.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('google_adsense')}
+            className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
+              activeTab === 'google_adsense'
+                ? 'bg-gradient-to-r from-indigo-600 via-blue-700 to-sky-700 text-white border-indigo-600 shadow-sm'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-200'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>إعلانات جوجل أدسنس و SDK</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              adsState.adsenseEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {adsState.adsenseEnabled ? 'أدسنس نشط' : 'متوقف'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ad_analytics')}
+            className={`px-3 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer border shrink-0 ${
+              activeTab === 'ad_analytics'
+                ? 'bg-gradient-to-r from-amber-600 via-rose-600 to-red-600 text-white border-amber-600 shadow-sm'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-200'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>صفحة مشاهدة وإحصائيات الإعلانات</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              activeTab === 'ad_analytics' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
             }`}>
               {adsState.customBanners.length}
             </span>
@@ -1101,8 +1254,8 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
             </div>
           )}
 
-          {/* TAB 4: ADS ENGINE & SPACES MANAGEMENT */}
-          {activeTab === 'ads' && (
+          {/* TAB 4: PLATFORM & VIDEO ADS MANAGEMENT (إعلانات المنصة الداخلية والفيديوهات) */}
+          {(activeTab === 'platform_ads' || activeTab === 'ads') && (
             <div className="space-y-6 animate-in fade-in duration-150">
               
               {/* Notification Banner when saved */}
@@ -1110,13 +1263,13 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                 <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl flex items-center justify-between text-xs text-emerald-200 animate-in fade-in">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>تم حفظ وتحديث إعدادات الإعلانات بنجاح في المنصة وفايربيز!</span>
+                    <span>تم حفظ وتحديث إعدادات إعلانات المنصة بنجاح في قاعدة بيانات فايربيز والمنظومة السحابية!</span>
                   </div>
                   <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold">مُفعل فورياً</span>
                 </div>
               )}
 
-              {/* 1. Master Control: Platform Ads vs Third-Party SDKs / AdSense */}
+              {/* 1. Master Control: Platform Ads (إعلانات المنصة الداخلية المستقلة) */}
               <div className="p-4 sm:p-5 bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl space-y-4 shadow-sm">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-2.5">
@@ -1133,11 +1286,11 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                             ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
                             : 'bg-red-100 text-red-800 border border-red-300'
                         }`}>
-                          {adsState.platformAdsEnabled ? 'إعلانات المنصة نشطة' : 'متوقفة بالكامل (تفسح المجال للـ SDK)'}
+                          {adsState.platformAdsEnabled ? 'إعلانات المنصة نشطة' : 'متوقفة بالكامل'}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        التحكم الشامل في إعلانات المنصة (البنرات، الإعلانات البينية، إعلانات المكافأة) وتصاميمها
+                        التحكم الحصري والمستقل في إعلانات المنصة (البنرات، الإعلانات البينية، إعلانات المكافأة، وفيديوهات يوتيوب وفيسبوك وتيك توك)
                       </p>
                     </div>
                   </div>
@@ -1162,12 +1315,12 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                 {!adsState.platformAdsEnabled && (
                   <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 font-bold flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>تم إيقاف إعلانات المنصة بنجاح. كافة المساحات مخصصة الآن لشبكة إعلانات Google AdSense وحزم الـ SDK الخارجية (تطبيق باد / AppLovin).</span>
+                    <span>تم إيقاف إعلانات المنصة الداخلية. للتحكم في Google AdSense توجه إلى تبويب "إعلانات جوجل أدسنس و SDK".</span>
                   </div>
                 )}
 
-                {/* Sub-Toggles Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                {/* Sub-Toggles Grid (Banners, Interstitial, Rewarded) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                   
                   {/* Sub-toggle: Banners */}
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col justify-between gap-2">
@@ -1181,7 +1334,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500">
-                        بنرات أعلى الصفحة ونافذة إضافة الإعلان (علامة AD)
+                        بنرات أعلى الصفحة والنافذة المربعة بإعلانات الفيديو والتواصل
                       </p>
                     </div>
 
@@ -1264,117 +1417,6 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                     </button>
                   </div>
 
-                  {/* Sub-toggle: Third Party SDKs & AdSense */}
-                  <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-200 flex flex-col justify-between gap-2">
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-black text-indigo-900">شبكات SDK وأدسنس</span>
-                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                          adsState.thirdPartySdkEnabled || adsState.adsenseEnabled ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          {adsState.thirdPartySdkEnabled ? 'تطبيق باد نشط' : adsState.adsenseEnabled ? 'أدسنس نشط' : 'وضع المنصة'}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-indigo-700 font-medium">
-                        إعلانات المستخدمين الخارجية (تطبيق باد / AppLovin / AdSense)
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateAdsState(prev => ({
-                        ...prev,
-                        thirdPartySdkEnabled: !prev.thirdPartySdkEnabled
-                      }))}
-                      className="w-full py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-black transition-colors cursor-pointer shadow-xs"
-                    >
-                      {adsState.thirdPartySdkEnabled ? 'إيقاف SDK تطبيق باد' : 'تفعيل SDK تطبيق باد'}
-                    </button>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* 2. Third-Party SDK & AdSense Configuration Card */}
-              <div className="p-4 sm:p-5 bg-white border border-indigo-200 rounded-2xl space-y-3.5 shadow-sm">
-                <div className="flex items-center justify-between pb-2 border-b border-indigo-100">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <h4 className="text-xs font-black text-slate-900">إعلانات المستخدمين الخارجية وحزم الـ SDK (تطبيق باد & Google AdSense)</h4>
-                  </div>
-                  <span className="text-[10px] font-mono bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">
-                    Third-Party Monetization SDK
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {/* AppBad SDK Setup */}
-                  <div className="p-3 bg-indigo-50/40 border border-indigo-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-indigo-900">تطبيق باد (AppBad SDK Integration)</span>
-                      <span className="text-[9px] bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded font-bold">جاهز للربط</span>
-                    </div>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      هذا الخيار خاص بإعلانات المستخدمين والحملات الخارجية المدفوعة التي يتم جلبها عبر SDK تطبيق باد المعتمد.
-                    </p>
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-700 block mb-1">SDK App Key / Client Key</label>
-                      <input 
-                        type="text"
-                        value={adsState.thirdPartyAppKey || 'appbad_sdk_live_key_994102'}
-                        onChange={e => handleUpdateAdsState(prev => ({
-                          ...prev,
-                          thirdPartyAppKey: e.target.value
-                        }))}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-indigo-200 text-xs font-mono text-slate-900 outline-none focus:border-indigo-500 dir-ltr"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Google AdSense Setup */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">Google AdSense الرسمي</span>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateAdsState(prev => ({
-                          ...prev,
-                          adsenseEnabled: !prev.adsenseEnabled
-                        }))}
-                        className={`text-[10px] px-2 py-0.5 rounded font-bold cursor-pointer transition-colors ${
-                          adsState.adsenseEnabled ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {adsState.adsenseEnabled ? 'أدسنس نشط' : 'تفعيل أدسنس'}
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">AdSense Client ID</label>
-                        <input 
-                          type="text"
-                          value={adsState.adsenseClientId}
-                          onChange={e => handleUpdateAdsState(prev => ({
-                            ...prev,
-                            adsenseClientId: e.target.value
-                          }))}
-                          className="w-full px-2 py-1 rounded bg-white border border-slate-300 text-[11px] font-mono text-slate-900 dir-ltr"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Slot ID</label>
-                        <input 
-                          type="text"
-                          value={adsState.adsenseSlotId}
-                          onChange={e => handleUpdateAdsState(prev => ({
-                            ...prev,
-                            adsenseSlotId: e.target.value
-                          }))}
-                          className="w-full px-2 py-1 rounded bg-white border border-slate-300 text-[11px] font-mono text-slate-900 dir-ltr"
-                        />
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -1498,12 +1540,11 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                          رابط صورة الإعلان (Cloudflare R2 / Firebase Storage / CDN) *
+                          رابط صورة الإعلان / البوستر (Cloudflare R2 / Firebase Storage / CDN)
                         </label>
                         <input
                           type="url"
-                          required
-                          placeholder="https://... صورة الإعلان بحجم جذاب"
+                          placeholder="https://... صورة الإعلان أو البوستر"
                           value={bannerForm.imageUrl}
                           onChange={e => setBannerForm({ ...bannerForm, imageUrl: e.target.value })}
                           className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 outline-none dir-ltr font-mono"
@@ -1512,7 +1553,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
 
                       <div>
                         <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                          الرابط المستهدف عند النقر (Target URL) *
+                          الرابط المستهدف عند النقر (Target URL أو رابط صفحة الإعلان) *
                         </label>
                         <input
                           type="url"
@@ -1524,6 +1565,66 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                         />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          رابط فيديو الإعلان (يوتيوب YouTube / فيسبوك Facebook ريلز / تيك توك TikTok / رابط مباشر MP4)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://www.youtube.com/watch?v=... أو فيسبوك أو تيك توك"
+                          value={bannerForm.videoUrl}
+                          onChange={e => setBannerForm({ ...bannerForm, videoUrl: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 outline-none dir-ltr font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">
+                          يتم تضمين الفيديو وتشغيله فورياً باحترافية لكافة المنصات
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          رقم الهاتف أو الواتساب للتواصل المباشر (Phone / WhatsApp)
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="مثال: +201012345678 أو 01012345678"
+                          value={bannerForm.phoneNumber}
+                          onChange={e => setBannerForm({ ...bannerForm, phoneNumber: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 outline-none dir-ltr font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">
+                          يظهر زر تواصل مباشر واتساب / هاتف على البنر لنقل المستخدم للمعلن
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Live Video / Poster Interactive Preview */}
+                    {(bannerForm.videoUrl.trim() || bannerForm.imageUrl.trim()) && (
+                      <div className="p-3 bg-slate-900 text-white rounded-2xl border border-slate-700 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-black text-amber-300">
+                          <span className="flex items-center gap-1.5">
+                            <Eye className="w-4 h-4" />
+                            <span>معاينة فورية للفيديو الإعلاني (مشغل المنصة):</span>
+                          </span>
+                          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full text-white font-bold">
+                            {bannerForm.videoUrl.trim() ? 'تشغيل فيديو احترافي' : 'معاينة صورة'}
+                          </span>
+                        </div>
+                        <div className="w-full max-w-[380px] mx-auto aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 shadow-xl relative">
+                          <AdVideoPlayer
+                            videoUrl={bannerForm.videoUrl.trim()}
+                            posterImage={bannerForm.imageUrl.trim()}
+                            title={bannerForm.title.trim() || 'معاينة الإعلان'}
+                            isMuted={true}
+                            autoPlay={true}
+                            className="w-full h-full"
+                            aspectRatio="video"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
@@ -1537,7 +1638,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                             setBannerForm({
                               ...bannerForm,
                               buttonType: val,
-                              buttonLabel: val === 'install' ? 'تثبيت التطبيق' : (val === 'download' ? 'تحميل' : 'انتقال للرابط')
+                              buttonLabel: val === 'whatsapp' ? 'تواصل واتساب' : (val === 'install' ? 'تثبيت التطبيق' : (val === 'download' ? 'تحميل' : 'انتقال للرابط'))
                             });
                           }}
                           className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 outline-none cursor-pointer"
@@ -1545,6 +1646,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                           <option value="install">زر تثبيت (Install App)</option>
                           <option value="navigate">زر انتقال (Navigate URL)</option>
                           <option value="download">زر تحميل (Download)</option>
+                          <option value="whatsapp">زر تواصل واتساب / هاتف</option>
                         </select>
                       </div>
 
@@ -1671,6 +1773,393 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       </div>
                     </div>
                   ))}
+                </div>
+
+              </div>
+
+              {/* 2.5 Dedicated Video Ads Management Section (إعلانات الفيديو التفاعلية مع تحكم كامل بالأيقونة والزر والواتساب والحدود) */}
+              <div className="p-4 sm:p-5 bg-white border border-rose-200 rounded-2xl space-y-4 shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-rose-100">
+                  <div className="flex items-center gap-2">
+                    <Video className="w-5 h-5 text-rose-600" />
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">إعلانات الفيديو التفاعلية (Video Ads Engine)</h3>
+                      <p className="text-[11px] text-slate-500 font-medium">إمكانية إضافة أكثر من إعلان فيديو مع صورة مخصصة للأيقونة وزر الواتساب والرابط</p>
+                    </div>
+                    <span className="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-bold border border-rose-200 mr-2">
+                      {adsState.customBanners.filter(b => b.mediaType === 'video' || !!b.videoUrl).length} إعلانات فيديو
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddVideoAdForm(!showAddVideoAdForm)}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>{showAddVideoAdForm ? 'إلغاء النموذج' : '+ إضافة إعلان فيديو جديد'}</span>
+                  </button>
+                </div>
+
+                {/* Add New Video Ad Form */}
+                {showAddVideoAdForm && (
+                  <form onSubmit={handleCreateNewVideoAd} className="p-4 bg-gradient-to-br from-rose-50/60 via-slate-50 to-white rounded-2xl border border-rose-200 space-y-3.5 animate-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between border-b border-rose-100 pb-2">
+                      <h4 className="text-xs font-black text-rose-900 flex items-center gap-1.5">
+                        <Video className="w-4 h-4 text-rose-600" />
+                        <span>إنشاء إعلان فيديو تفاعلي احترافي جديد</span>
+                      </h4>
+                      <span className="text-[10px] text-rose-600 font-bold bg-rose-100 px-2 py-0.5 rounded-full">
+                        حفظ متزامن في فايربيز وقاعدة البيانات
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          عنوان إعلان الفيديو *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="مثال: شاهد فرصة عمل حصرية / تطبيق شغل وتقنية"
+                          value={videoAdForm.title}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, title: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          اسم المعلن / الراعي
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="مثال: شركة النماء للتوظيف"
+                          value={videoAdForm.sponsorName}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, sponsorName: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Video URL Input */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        رابط فيديو الإعلان (يوتيوب / تيك توك / فيسبوك ريلز / رابط مباشر MP4) *
+                      </label>
+                      <input
+                        type="url"
+                        required
+                        placeholder="https://www.youtube.com/watch?v=... أو تيك توك أو فيسبوك أو MP4"
+                        value={videoAdForm.videoUrl}
+                        onChange={e => setVideoAdForm({ ...videoAdForm, videoUrl: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none dir-ltr font-mono"
+                      />
+                      <span className="text-[10px] text-slate-500 mt-0.5 block">
+                        مشغل الفيديو يدعم جميع صيغ المنصات العالمية والروابط المباشرة بدون أي تعقيد
+                      </span>
+                    </div>
+
+                    {/* Custom Icon URL & Poster Image */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          صورة مخصصة للأيقونة التي تظهر (Custom Icon)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://... صورة أيقونة الإعلان المربعة"
+                          value={videoAdForm.customIconUrl}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, customIconUrl: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none dir-ltr font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-0.5 block">
+                          تظهر كأيقونة مميزة دائرية أو مربعة بجانب الإعلان والزر
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          صورة الغلاف / البوستر (Poster Image)
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://... صورة الغلاف قبل التشغيل"
+                          value={videoAdForm.imageUrl}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, imageUrl: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none dir-ltr font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Target URL & WhatsApp Number */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          الرابط الخاص بالمنصة التي تريد نقل المستخدم إليها (Target URL) *
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://roohpro.com/ad أو رابط موقعك"
+                          value={videoAdForm.targetUrl}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, targetUrl: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none dir-ltr font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          الرقم الذي تريد المستخدم الوصول إليه عند النقر على واتساب
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="مثال: +201012345678 أو 01012345678"
+                          value={videoAdForm.phoneNumber}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, phoneNumber: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 outline-none dir-ltr font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Icon Option & Button Styling */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="showWhatsAppIcon"
+                          checked={videoAdForm.showWhatsAppIcon}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, showWhatsAppIcon: e.target.checked })}
+                          className="accent-emerald-600 w-4 h-4 rounded cursor-pointer"
+                        />
+                        <label htmlFor="showWhatsAppIcon" className="text-xs font-bold text-slate-800 cursor-pointer flex items-center gap-1">
+                          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>إضافة أيقونة وزر واتساب</span>
+                        </label>
+                      </div>
+
+                      <div>
+                        <label className="text-[10.5px] font-bold text-slate-700 block mb-1">شكل ووظيفة الزر</label>
+                        <select
+                          value={videoAdForm.buttonType}
+                          onChange={e => {
+                            const val = e.target.value as AdButtonType;
+                            setVideoAdForm({
+                              ...videoAdForm,
+                              buttonType: val,
+                              buttonLabel: val === 'whatsapp' ? 'تواصل واتساب الآن' : val === 'install' ? 'تثبيت التطبيق' : val === 'download' ? 'تحميل التطبيق' : 'انتقال للرابط'
+                            });
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                        >
+                          <option value="whatsapp">🟢 زر واتساب مباشر (WhatsApp)</option>
+                          <option value="navigate">🔗 زر انتقال للمنصة (Navigate)</option>
+                          <option value="download">📥 زر تحميل (Download)</option>
+                          <option value="install">📲 زر تثبيت (Install App)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10.5px] font-bold text-slate-700 block mb-1">نص الزر (CTA)</label>
+                        <input
+                          type="text"
+                          value={videoAdForm.buttonLabel}
+                          onChange={e => setVideoAdForm({ ...videoAdForm, buttonLabel: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs text-slate-900 outline-none font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Campaign Limits (Views and Clicks) */}
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-black text-amber-950 block mb-1 flex items-center gap-1">
+                          <Eye className="w-3.5 h-3.5 text-amber-700" />
+                          <span>الحد الأقصى للمشاهدات (توقف الإعلان تلقائياً عند الوصول إليه)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={videoAdForm.maxViewsLimit}
+                            onChange={e => setVideoAdForm({ ...videoAdForm, maxViewsLimit: Number(e.target.value) || 0 })}
+                            className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-bold text-slate-900 outline-none text-center font-mono"
+                          />
+                          <span className="text-xs font-bold text-amber-900">مشاهدة</span>
+                        </div>
+                        <span className="text-[10px] text-amber-800 mt-1 block">
+                          مثال: 1000 أو 2000 مشاهدة، وبعد الوصول إليها يتوقف الإعلان تلقائياً
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-black text-amber-950 block mb-1 flex items-center gap-1">
+                          <Target className="w-3.5 h-3.5 text-amber-700" />
+                          <span>الحد الأقصى للنقرات (اختياري)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={videoAdForm.maxClicksLimit}
+                            onChange={e => setVideoAdForm({ ...videoAdForm, maxClicksLimit: Number(e.target.value) || 0 })}
+                            className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-bold text-slate-900 outline-none text-center font-mono"
+                          />
+                          <span className="text-xs font-bold text-amber-900">نقرة</span>
+                        </div>
+                        <span className="text-[10px] text-amber-800 mt-1 block">
+                          اتركه 0 إذا كنت تريد الاعتماد على عدد المشاهدات فقط
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Interactive Live Video Player Preview inside Form */}
+                    {videoAdForm.videoUrl.trim() && (
+                      <div className="p-3 bg-slate-950 text-white rounded-2xl border border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-black text-rose-400">
+                          <span className="flex items-center gap-1.5">
+                            <Play className="w-4 h-4 fill-rose-500 text-rose-500" />
+                            <span>معاينة فورية للفيديو والتأكد من أنه يعمل بشكل سليم:</span>
+                          </span>
+                          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full text-white font-bold">
+                            مشغل فيديو معتمد
+                          </span>
+                        </div>
+                        <div className="w-full max-w-[380px] mx-auto aspect-video rounded-xl overflow-hidden bg-black border border-slate-800 shadow-xl relative">
+                          <AdVideoPlayer
+                            videoUrl={videoAdForm.videoUrl.trim()}
+                            posterImage={videoAdForm.imageUrl.trim()}
+                            title={videoAdForm.title.trim() || 'معاينة إعلان الفيديو'}
+                            isMuted={true}
+                            autoPlay={true}
+                            className="w-full h-full"
+                            aspectRatio="video"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Submit and Verify Buttons */}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-rose-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddVideoAdForm(false)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-200 text-slate-700 hover:bg-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>حفظ ونشر إعلان الفيديو والتأكد من أنه يعمل</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Video Ads List */}
+                <div className="space-y-3">
+                  {adsState.customBanners.filter(b => b.mediaType === 'video' || !!b.videoUrl).length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-rose-200 text-center text-slate-500 text-xs space-y-1">
+                      <Video className="w-8 h-8 text-rose-300 mx-auto mb-1 stroke-1" />
+                      <p className="font-bold text-slate-700">لا توجد إعلانات فيديو منشأة حالياً</p>
+                      <p className="text-[11px] text-slate-400">انقر على زر "+ إضافة إعلان فيديو جديد" بالأعلى لإنشاء أول إعلان فيديو للمنصة</p>
+                    </div>
+                  ) : (
+                    adsState.customBanners
+                      .filter(b => b.mediaType === 'video' || !!b.videoUrl)
+                      .map(banner => (
+                        <div
+                          key={banner.id}
+                          className="p-3.5 bg-gradient-to-r from-rose-50/30 via-white to-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs hover:border-rose-300 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shrink-0">
+                              {banner.imageUrl ? (
+                                <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-rose-950 text-rose-400">
+                                  <Video className="w-6 h-6" />
+                                </div>
+                              )}
+                              {banner.customIconUrl && (
+                                <img
+                                  src={banner.customIconUrl}
+                                  alt="Icon"
+                                  className="absolute bottom-1 right-1 w-5 h-5 rounded-md object-cover border border-white shadow-xs"
+                                />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="text-xs font-black text-slate-900 truncate">{banner.title}</h5>
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black ${
+                                  banner.active && !banner.isPaused
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {banner.active && !banner.isPaused ? 'نشط ويعمل ✓' : 'متوقف'}
+                                </span>
+                                {banner.showWhatsAppIcon && (
+                                  <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded-full font-bold flex items-center gap-0.5">
+                                    <MessageCircle className="w-2.5 h-2.5" />
+                                    <span>واتساب مفعّل</span>
+                                  </span>
+                                )}
+                                <span className="text-[9px] bg-rose-50 text-rose-800 border border-rose-200 px-1.5 py-0.2 rounded-full font-bold">
+                                  {banner.buttonLabel || 'فيديو'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-[10.5px] text-slate-500 font-medium">
+                                <span>المعلن: <strong className="text-slate-700">{banner.sponsorName}</strong></span>
+                                <span>المشاهدات: <strong className="text-blue-700 font-mono">{banner.viewsCount || 0}</strong> {banner.maxViewsLimit ? `/ ${banner.maxViewsLimit}` : ''}</span>
+                                <span>النقرات: <strong className="text-emerald-700 font-mono">{banner.clicksCount || 0}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                            {banner.targetUrl && (
+                              <a
+                                href={banner.targetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10.5px] font-bold border border-blue-200 flex items-center gap-1 transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>معاينة الرابط</span>
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBannerItem(banner.id, !banner.active)}
+                              className={`px-3 py-1 rounded-lg text-[10.5px] font-black cursor-pointer transition-colors ${
+                                banner.active ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              }`}
+                            >
+                              {banner.active ? 'إيقاف' : 'تشغيل'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBannerItem(banner.id)}
+                              className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 transition-colors cursor-pointer border border-red-200"
+                              title="حذف إعلان الفيديو"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  )}
                 </div>
 
               </div>
@@ -1963,7 +2452,579 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
             </div>
           )}
 
-          {/* TAB: DIRECT SUPPORT & USER TICKETS */}
+          {/* TAB: GOOGLE ADSENSE & EXTERNAL SDK MANAGEMENT (صفحة مستقلة لإعلانات أدسنس) */}
+          {activeTab === 'google_adsense' && (
+            <div className="space-y-6 animate-in fade-in duration-150">
+              
+              {/* Notification Banner when saved */}
+              {adsSavedNotice && (
+                <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl flex items-center justify-between text-xs text-emerald-200 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>تم حفظ إعدادات Google AdSense بنجاح في قاعدة البيانات والمنظومة السحابية!</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold">مُفعل</span>
+                </div>
+              )}
+
+              {/* Header / Intro Card */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-900 via-blue-900 to-slate-900 text-white rounded-2xl sm:rounded-3xl shadow-md space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-xs">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black">
+                      صفحة إنشاء وضبط إعلانات Google AdSense وشبكات الـ SDK المستقلة
+                    </h3>
+                    <p className="text-[11px] text-blue-200 mt-0.5">
+                      هذه الصفحة مخصصة بالكامل وبشكل منفصل لربط حساب جوجل أدسنس وشبكات الإعلانات الخارجية، دون أي تداخل مع إعلانات المنصة الداخلية.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 1. Google AdSense Main Settings */}
+              <div className="p-4 sm:p-5 bg-white border-2 border-indigo-200 rounded-2xl sm:rounded-3xl space-y-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
+                      adsState.adsenseEnabled ? 'bg-gradient-to-tr from-amber-500 to-indigo-600' : 'bg-slate-700'
+                    }`}>
+                      <Sparkles className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900">حالة إعلانات Google AdSense</h4>
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black ${
+                          adsState.adsenseEnabled 
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                            : 'bg-slate-100 text-slate-700 border border-slate-300'
+                        }`}>
+                          {adsState.adsenseEnabled ? 'مفعل وجاهز للعرض' : 'معطل حالياً'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        تفعيل أو إيقاف إعلانات Google AdSense عبر مساحات الإعلانات
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateAdsState(prev => ({
+                      ...prev,
+                      adsenseEnabled: !prev.adsenseEnabled
+                    }))}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-2 shrink-0 ${
+                      adsState.adsenseEnabled
+                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                    }`}
+                  >
+                    <span>{adsState.adsenseEnabled ? 'تعطيل جوجل أدسنس' : 'تفعيل جوجل أدسنس'}</span>
+                  </button>
+                </div>
+
+                {/* Form fields for Google AdSense */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      معرف الناشر في Google AdSense (Client ID) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="ca-pub-XXXXXXXXXXXXXXXX"
+                      value={adsState.adsenseClientId || ''}
+                      onChange={e => handleUpdateAdsState(prev => ({
+                        ...prev,
+                        adsenseClientId: e.target.value.trim()
+                      }))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono dir-ltr text-slate-900 outline-none focus:border-indigo-600"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
+                      يبدأ دائماً بـ ca-pub- يتبعه 16 رقماً من حسابك في AdSense
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      معرف الوحدة الإعلانية الافتراضية (Slot ID) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="مثال: 1234567890"
+                      value={adsState.adsenseSlotId || ''}
+                      onChange={e => handleUpdateAdsState(prev => ({
+                        ...prev,
+                        adsenseSlotId: e.target.value.trim()
+                      }))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono dir-ltr text-slate-900 outline-none focus:border-indigo-600"
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">
+                      معرف الوحدة الإعلانية المتجاوبة Responsive Ad Unit
+                    </span>
+                  </div>
+                </div>
+
+                {/* AdSense Live Preview / Diagnostic */}
+                <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2 border border-slate-800">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-300">
+                    <span>كود التضمين البرمجي المولد آلياً لـ Google AdSense:</span>
+                    <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono text-white">
+                      Responsive In-Feed / Banner
+                    </span>
+                  </div>
+                  <pre className="text-[11px] font-mono p-2.5 bg-black/60 rounded-xl overflow-x-auto text-emerald-300 dir-ltr select-all">
+{`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsState.adsenseClientId || 'ca-pub-XXXXXXXXXXXXXXXX'}" crossorigin="anonymous"></script>
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="${adsState.adsenseClientId || 'ca-pub-XXXXXXXXXXXXXXXX'}"
+     data-ad-slot="${adsState.adsenseSlotId || '1234567890'}"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>`}
+                  </pre>
+                </div>
+              </div>
+
+              {/* 2. Third-Party Mobile Ad Networks (AppBad SDK / AppLovin / Google AdMob) */}
+              <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl sm:rounded-3xl space-y-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                      <Sliders className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900">شبكات إعلانات التطبيقات (Third-Party Mobile SDKs)</h4>
+                        <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black ${
+                          adsState.thirdPartySdkEnabled 
+                            ? 'bg-purple-100 text-purple-800 border border-purple-300' 
+                            : 'bg-slate-100 text-slate-700 border border-slate-300'
+                        }`}>
+                          {adsState.thirdPartySdkEnabled ? 'مفعل' : 'معطل'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        دعم شبكة AppBad SDK أو AppLovin MAX أو Google AdMob
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateAdsState(prev => ({
+                      ...prev,
+                      thirdPartySdkEnabled: !prev.thirdPartySdkEnabled
+                    }))}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-2 shrink-0 ${
+                      adsState.thirdPartySdkEnabled
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/20'
+                    }`}
+                  >
+                    <span>{adsState.thirdPartySdkEnabled ? 'تعطيل شبكة SDK' : 'تفعيل شبكة SDK'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      نوع شبكة الـ SDK المختارة *
+                    </label>
+                    <select
+                      value={adsState.thirdPartySdkType || 'appbad'}
+                      onChange={e => handleUpdateAdsState(prev => ({
+                        ...prev,
+                        thirdPartySdkType: e.target.value as any
+                      }))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="appbad">AppBad Live SDK (شبكة تطبيق باد)</option>
+                      <option value="applovin">AppLovin MAX SDK</option>
+                      <option value="google_admob">Google AdMob Mobile SDK</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      مفتاح التطبيق / App Key أو Ad Unit ID
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="app_live_key_xxxxxxxxxxxxx"
+                      value={adsState.thirdPartyAppKey || ''}
+                      onChange={e => handleUpdateAdsState(prev => ({
+                        ...prev,
+                        thirdPartyAppKey: e.target.value.trim()
+                      }))}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono dir-ltr text-slate-900 outline-none focus:border-purple-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB: AD ANALYTICS & CAMPAIGN CAPPING (صفحة مشاهدة وإحصائيات الإعلانات المنشأة يدوياً) */}
+          {activeTab === 'ad_analytics' && (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              
+              {/* Notification Banner when saved */}
+              {adsSavedNotice && (
+                <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-2xl flex items-center justify-between text-xs text-emerald-200 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>تم تحديث وضبط حدود الإعلان بنجاح ومزامنته في فايربيز وقاعدة البيانات!</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold">مُحدث</span>
+                </div>
+              )}
+
+              {/* 1. Header Banner with Overview & KPIs */}
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white rounded-2xl sm:rounded-3xl shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-600 flex items-center justify-center text-white shadow-md">
+                      <BarChart3 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black flex items-center gap-2">
+                        <span>لوحة مشاهدة وإحصائيات الإعلانات اليدوية</span>
+                        <span className="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold">
+                          عدادات حية + تحكم ذكي
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-300 font-medium mt-0.5">
+                        متابعة عدد المشاهدات والنقرات لكل إعلان فيديو أو بانر منشأ يدوياً، مع ميزة التوقف التلقائي عند الوصول للحد المحدد
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('platform_ads')}
+                      className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>إضافة إعلانات جديدة</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4 Metric KPI Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                    <span className="text-[11px] text-slate-400 font-bold block mb-0.5">إجمالي الإعلانات</span>
+                    <span className="text-xl font-black text-white font-mono">{adsState.customBanners.length}</span>
+                  </div>
+
+                  <div className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                    <span className="text-[11px] text-blue-300 font-bold block mb-0.5">إجمالي المشاهدات</span>
+                    <span className="text-xl font-black text-blue-400 font-mono">
+                      {adsState.customBanners.reduce((sum, b) => sum + (b.viewsCount || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                    <span className="text-[11px] text-emerald-300 font-bold block mb-0.5">إجمالي النقرات</span>
+                    <span className="text-xl font-black text-emerald-400 font-mono">
+                      {adsState.customBanners.reduce((sum, b) => sum + (b.clicksCount || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                    <span className="text-[11px] text-amber-300 font-bold block mb-0.5">إعلانات نشطة</span>
+                    <span className="text-xl font-black text-amber-400 font-mono">
+                      {adsState.customBanners.filter(b => b.active && !b.isPaused && isAdEligibleToShow(b)).length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Platform & Cookies Targeting Bar */}
+                <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div>
+                      <strong className="text-white">نظام استهداف الكوكيز الذكي: </strong>
+                      <span className="text-slate-300 text-[11px]">
+                        يتم عرض الإعلانات استناداً إلى كوكيز المنصة الرئيسية (<span className="font-mono text-amber-300">roohpro.com/ad</span>) واهتمامات التطبيق المجمعة
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full font-mono font-bold shrink-0 self-start sm:self-auto">
+                    Cookie: {targetingCookies.platformCookie}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Listing of all Custom Ads with Live Counters & Limit Adjustment */}
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="text-xs font-black text-slate-800 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-rose-600" />
+                    <span>جميع الإعلانات المنشأة داخل التطبيق مع عداداتها والحد الأقصى</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    انقر على "تعديل الحد" لزيادة المشاهدات أو استئناف الحملة
+                  </span>
+                </div>
+
+                {adsState.customBanners.length === 0 ? (
+                  <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center text-slate-500 text-xs space-y-2">
+                    <BarChart3 className="w-10 h-10 text-slate-300 mx-auto stroke-1" />
+                    <p className="font-bold text-slate-700">لا توجد إعلانات منشأة يدوياً حتى الآن</p>
+                    <p className="text-[11px] text-slate-400">توجه إلى تبويب "إعلانات المنصة والفيديوهات" لإضافة أول إعلان فيديو أو بانر</p>
+                  </div>
+                ) : (
+                  adsState.customBanners.map(ad => {
+                    const isVideo = ad.mediaType === 'video' || !!ad.videoUrl;
+                    const views = ad.viewsCount || 0;
+                    const clicks = ad.clicksCount || 0;
+                    const maxViews = ad.maxViewsLimit || 0;
+                    const maxClicks = ad.maxClicksLimit || 0;
+
+                    const isViewsCapped = maxViews > 0 && views >= maxViews;
+                    const isClicksCapped = maxClicks > 0 && clicks >= maxClicks;
+                    const isAutoCapped = isViewsCapped || isClicksCapped;
+
+                    const viewsPercent = maxViews > 0 ? Math.min(100, Math.round((views / maxViews) * 100)) : null;
+                    const isEditingThis = editingAdLimitId === ad.id;
+
+                    return (
+                      <div
+                        key={ad.id}
+                        className={`p-4 rounded-2xl border transition-all shadow-xs ${
+                          isAutoCapped
+                            ? 'bg-amber-50/70 border-amber-300'
+                            : ad.active && !ad.isPaused
+                            ? 'bg-white border-slate-200 hover:border-blue-300'
+                            : 'bg-slate-50 border-slate-200 opacity-80'
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                          
+                          {/* Ad Preview & Info */}
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="relative w-20 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shrink-0">
+                              {ad.imageUrl ? (
+                                <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400">
+                                  {isVideo ? <Video className="w-6 h-6 text-rose-400" /> : <ImageIcon className="w-6 h-6" />}
+                                </div>
+                              )}
+                              {ad.customIconUrl && (
+                                <img
+                                  src={ad.customIconUrl}
+                                  alt="Custom Icon"
+                                  className="absolute bottom-1 right-1 w-5 h-5 rounded-md object-cover border border-white shadow-xs"
+                                  title="الأيقونة المخصصة للإعلان"
+                                />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="text-xs sm:text-sm font-black text-slate-900 truncate">{ad.title}</h5>
+                                
+                                <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-black ${
+                                  isVideo ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}>
+                                  {isVideo ? '🎬 فيديو' : '🖼️ بنر'}
+                                </span>
+
+                                {/* Status Badge */}
+                                {isAutoCapped ? (
+                                  <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-black flex items-center gap-1 shadow-2xs animate-pulse">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    <span>توقف تلقائياً (وصل للحد المحدد)</span>
+                                  </span>
+                                ) : ad.active && !ad.isPaused ? (
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full font-black flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                                    <span>نشط ويعمل داخل التطبيق</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                                    متوقف مؤقتاً
+                                  </span>
+                                )}
+
+                                {ad.showWhatsAppIcon && (
+                                  <span className="text-[9.5px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded-full font-bold flex items-center gap-0.5">
+                                    <MessageCircle className="w-2.5 h-2.5" />
+                                    <span>واتساب</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                المعلن: <strong className="text-slate-800">{ad.sponsorName}</strong> • الزر: <strong className="text-blue-700">{ad.buttonLabel || 'انتقال'}</strong>
+                                {ad.phoneNumber && <span className="mr-2 font-mono dir-ltr text-slate-600">({ad.phoneNumber})</span>}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Live Counters & Progress */}
+                          <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end shrink-0 border-t lg:border-t-0 pt-2 lg:pt-0 border-slate-100">
+                            
+                            {/* Views Counter */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 min-w-[130px] text-center">
+                              <div className="text-[10px] text-slate-500 font-bold mb-0.5 flex items-center justify-center gap-1">
+                                <Eye className="w-3 h-3 text-blue-600" />
+                                <span>عداد المشاهدات</span>
+                              </div>
+                              <div className="text-sm font-black text-slate-900 font-mono">
+                                {views.toLocaleString()} {maxViews > 0 ? <span className="text-slate-400 text-xs">/ {maxViews.toLocaleString()}</span> : ''}
+                              </div>
+                              {maxViews > 0 && viewsPercent !== null && (
+                                <div className="w-full bg-slate-200 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      viewsPercent >= 100 ? 'bg-amber-500' : 'bg-blue-600'
+                                    }`}
+                                    style={{ width: `${viewsPercent}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Clicks Counter */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 min-w-[100px] text-center">
+                              <div className="text-[10px] text-slate-500 font-bold mb-0.5 flex items-center justify-center gap-1">
+                                <Target className="w-3 h-3 text-emerald-600" />
+                                <span>عداد النقرات</span>
+                              </div>
+                              <div className="text-sm font-black text-emerald-700 font-mono">
+                                {clicks.toLocaleString()} {maxClicks > 0 ? <span className="text-slate-400 text-xs">/ {maxClicks}</span> : ''}
+                              </div>
+                              {maxClicks > 0 && (
+                                <div className="text-[9px] text-slate-400 mt-1 font-mono">
+                                  الحد: {maxClicks} نقرة
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditAdLimits(ad)}
+                                className="px-2.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-black border border-blue-200 flex items-center gap-1 transition-colors cursor-pointer"
+                                title="تعديل حد المشاهدات أو استئناف الحملة"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>تعديل الحد</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateAdLimits(ad.id, {
+                                    isPaused: !ad.isPaused,
+                                    active: ad.isPaused
+                                  });
+                                  setAdsState(getDeveloperAdsState());
+                                }}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-colors cursor-pointer ${
+                                  ad.isPaused
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                                }`}
+                              >
+                                {ad.isPaused ? 'استئناف' : 'إيقاف مؤقت'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleResetAdCounters(ad.id)}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer border border-slate-200"
+                                title="إعادة تصفير العدادات وبدء حملة جديدة من الصفر"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBannerItem(ad.id)}
+                                className="p-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer border border-red-200"
+                                title="حذف الإعلان"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                          </div>
+                        </div>
+
+                        {/* Inline Limits Editor when active for this ad */}
+                        {isEditingThis && (
+                          <div className="mt-3 pt-3 border-t border-blue-200/80 bg-blue-50/70 p-3 rounded-xl space-y-2 animate-in slide-in-from-top-1">
+                            <div className="flex items-center justify-between text-xs font-black text-blue-900">
+                              <span>تعديل الحد الأقصى للمشاهدات والنقرات لهذا الإعلان:</span>
+                              <span className="text-[10px] text-blue-700">رفع الحد يستأنف الإعلان فورياً</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10.5px] font-bold text-slate-700 block mb-1">
+                                  عدد المشاهدات الأقصى الجديد (مثال: 1000 أو 2000 مشاهدة)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="100"
+                                  value={tempViewsLimit}
+                                  onChange={e => setTempViewsLimit(Number(e.target.value) || 0)}
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-blue-300 text-xs font-bold text-slate-900 outline-none font-mono"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10.5px] font-bold text-slate-700 block mb-1">
+                                  عدد النقرات الأقصى الجديد (0 = غير محدد)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="50"
+                                  value={tempClicksLimit}
+                                  onChange={e => setTempClicksLimit(Number(e.target.value) || 0)}
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-blue-300 text-xs font-bold text-slate-900 outline-none font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setEditingAdLimitId(null)}
+                                className="px-3 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                إلغاء
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAdLimits(ad.id)}
+                                className="px-4 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition-colors cursor-pointer flex items-center gap-1 shadow-xs"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                <span>حفظ وتطبيق الحد فورياً</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+            </div>
+          )}
           {activeTab === 'support' && (
             <div className="space-y-4 animate-in fade-in duration-150">
               
@@ -2122,7 +3183,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                         </div>
 
                         {/* Messages History */}
-                        <div className="flex-1 overflow-y-auto py-3 space-y-2.5">
+                        <div className="flex-1 overflow-y-auto py-3 space-y-3.5">
                           {activeTicket.messages.map((m) => {
                             const isUser = m.sender === 'user';
                             return (
@@ -2130,6 +3191,21 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                                 key={m.id}
                                 className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
                               >
+                                {/* زر فوق كل رسالة ليتمكن المطور من الرد عليها مباشرة واقتباسها */}
+                                <div className={`flex items-center gap-1.5 mb-1 ${isUser ? 'justify-start' : 'justify-end'}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSupportReplyText(`رداً على: "${m.text.slice(0, 40)}..." `);
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-black flex items-center gap-1 border border-blue-200 transition-colors cursor-pointer shadow-2xs"
+                                    title="الرد على هذه الرسالة واقتباسها"
+                                  >
+                                    <Reply className="w-3 h-3 text-blue-600" />
+                                    <span>الرد على هذه الرسالة</span>
+                                  </button>
+                                </div>
+
                                 <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed space-y-1 ${
                                   isUser
                                     ? 'bg-slate-100 text-slate-900 rounded-tr-none'
