@@ -180,12 +180,9 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({
         className="flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 w-full max-w-6xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* إعلان بنر مربع 350x350: في وضع الهاتف أعلى نافذة إضافة، وفي وضع المتصفح بجانب نافذة إضافة */}
-        <SquareBannerAd350 className="order-1 lg:order-2 shrink-0 my-1 shadow-2xl lg:sticky lg:top-8" />
-
         {/* نافذة إضافة الإعلان: بدون سكرول داخلي ليتم سحب الصفحة بالكامل للأعلى من أي مكان */}
         <div 
-          className="order-2 lg:order-1 w-full max-w-2xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300"
+          className="order-1 lg:order-1 w-full max-w-2xl bg-white border border-slate-200 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-5 duration-300"
         >
           {/* Header */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-red-50 via-white to-blue-50 border-b border-slate-200 flex items-center justify-between">
@@ -614,6 +611,9 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({
           </div>
         )}
         </div>
+
+        {/* إعلان بنر مربع 350x350 مدمج ومتكيف من اليمين إلى الشمال */}
+        <SquareBannerAd350 className="order-2 lg:order-2 shrink-0 my-3 shadow-2xl lg:sticky lg:top-8" />
       </div>
     </div>
   );

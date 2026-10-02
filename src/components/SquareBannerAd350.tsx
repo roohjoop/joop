@@ -90,7 +90,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
   if (adsState.thirdPartySdkEnabled) {
     return (
       <div 
-        className={`w-full max-w-[350px] md:max-w-[420px] rounded-2xl md:rounded-3xl bg-slate-900 border-2 border-indigo-500 shadow-2xl overflow-hidden flex flex-col p-4 shrink-0 select-none ${className}`}
+        className={`w-full max-w-[350px] h-[350px] min-h-[350px] max-h-[350px] rounded-2xl md:rounded-3xl bg-slate-900 border-2 border-indigo-500 shadow-2xl overflow-hidden flex flex-col justify-between p-4 shrink-0 select-none mx-auto ${className}`}
         dir="rtl"
       >
         <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800">
@@ -103,7 +103,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
           <span className="text-[10px] text-slate-400 font-mono">AppBad Live SDK</span>
         </div>
 
-        <div className="w-full min-h-[180px] flex-1 flex flex-col items-center justify-center py-6 text-center">
+        <div className="w-full min-h-[180px] flex-1 flex flex-col items-center justify-center py-4 text-center">
           <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 mb-2">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
@@ -120,10 +120,10 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
   if (adsState.adsenseEnabled) {
     return (
       <div 
-        className={`w-full max-w-[350px] md:max-w-[420px] rounded-2xl md:rounded-3xl bg-slate-900 border-2 border-blue-500 shadow-2xl overflow-hidden flex flex-col items-center justify-between p-4 shrink-0 select-none ${className}`}
+        className={`w-full max-w-[350px] h-[350px] min-h-[350px] max-h-[350px] rounded-2xl md:rounded-3xl bg-slate-900 border-2 border-blue-500 shadow-2xl overflow-hidden flex flex-col items-center justify-between p-3 shrink-0 select-none mx-auto ${className}`}
         dir="rtl"
       >
-        <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className="w-full flex items-center justify-between pb-2 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-md border-2 border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.6)] font-mono tracking-wider">
               AD
@@ -134,7 +134,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
         </div>
 
         {/* AdSense Container */}
-        <div className="w-full flex-1 flex items-center justify-center py-3">
+        <div className="w-full flex-1 flex items-center justify-center py-1">
           <ins 
             className="adsbygoogle"
             style={{ display: 'inline-block', width: '300px', height: '250px' }}
@@ -143,7 +143,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
           />
         </div>
 
-        <div className="text-[10px] text-slate-400 text-center">
+        <div className="text-[9.5px] text-slate-400 text-center shrink-0">
           شبكة إعلانات Google AdSense الرسمية لمنصة شغل وتقنية
         </div>
       </div>
@@ -182,45 +182,45 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
   return (
     <>
       <div 
-        className={`w-full max-w-[350px] rounded-2xl sm:rounded-3xl bg-white border-2 border-amber-400 shadow-2xl overflow-hidden flex flex-col justify-between shrink-0 select-none relative transition-all duration-300 ${className}`}
+        className={`w-full max-w-[350px] h-[350px] min-h-[350px] max-h-[350px] rounded-2xl sm:rounded-3xl bg-white border-2 border-amber-400 shadow-2xl overflow-hidden flex flex-col justify-between shrink-0 select-none relative transition-all duration-300 mx-auto ${className}`}
         dir="rtl"
       >
         {/* 1. Standardized Header with Unified "AD" Badge and Small Report Button */}
-        <div className="px-3 py-2 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white flex items-center justify-between shrink-0 shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="h-[36px] min-h-[36px] px-3 py-1 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white flex items-center justify-between shrink-0 shadow-xs">
+          <div className="flex items-center gap-1.5 min-w-0">
             {/* Unified Distinctive Yellow Framed AD Emblem Badge */}
-            <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-md border-2 border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.6)] font-mono tracking-wider">
+            <span className="bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 text-slate-950 font-black text-[10px] px-2 py-0.2 rounded border border-yellow-300 shadow-[0_0_8px_rgba(250,204,21,0.5)] font-mono tracking-wider shrink-0">
               AD
             </span>
-            <span className="text-xs font-black text-white truncate max-w-[170px]">
+            <span className="text-xs font-black text-white truncate max-w-[150px]">
               {currentBanner.sponsorName}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Small Report Button on Ad Window (زر إبلاغ صغير) */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setIsReportOpen(true);
               }}
-              className="px-2 py-0.5 rounded-lg bg-black/30 hover:bg-black/50 text-amber-200 hover:text-white border border-white/20 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+              className="px-1.5 py-0.5 rounded bg-black/30 hover:bg-black/50 text-amber-200 hover:text-white border border-white/20 text-[9.5px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
               title="إبلاغ الدعم عن هذا الإعلان"
             >
-              <ShieldAlert className="w-3 h-3 text-amber-300" />
+              <ShieldAlert className="w-2.5 h-2.5 text-amber-300" />
               <span>إبلاغ</span>
             </button>
 
-            <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-300 bg-black/20 px-1.5 py-0.5 rounded-md">
-              <Star className="w-3 h-3 fill-current" />
+            <span className="flex items-center gap-0.5 text-[9.5px] font-bold text-amber-300 bg-black/20 px-1 py-0.5 rounded">
+              <Star className="w-2.5 h-2.5 fill-current" />
               <span>5.0</span>
             </span>
-            <ShieldCheck className="w-4 h-4 text-emerald-300" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
           </div>
         </div>
 
         {/* 2. Visual Media Section: Professional Video / Image Player */}
-        <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden shrink-0">
+        <div className="relative w-full h-[162px] min-h-[162px] max-h-[162px] bg-black flex items-center justify-center overflow-hidden shrink-0">
           {isVideo || currentBanner.videoUrl ? (
             <AdVideoPlayer
               videoUrl={rawMedia}
@@ -228,7 +228,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
               title={currentBanner.title}
               isMuted={isMuted}
               autoPlay={true}
-              className="w-full h-full"
+              className="w-full h-full object-cover"
               aspectRatio="video"
             />
           ) : (
@@ -244,60 +244,60 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
 
           {/* Badge over media */}
           <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-10">
-            <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 border border-yellow-300 font-mono text-[9.5px] font-black px-2 py-0.5 rounded shadow-sm">
+            <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 border border-yellow-300 font-mono text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs">
               AD
             </span>
             {isVideo && (
-              <span className="px-1.5 py-0.5 bg-red-600/90 text-white text-[9px] font-bold rounded flex items-center gap-0.5">
-                <Play className="w-2.5 h-2.5 fill-current" />
+              <span className="px-1.5 py-0.5 bg-red-600/90 text-white text-[8.5px] font-bold rounded flex items-center gap-0.5">
+                <Play className="w-2 h-2 fill-current" />
                 فيديو
               </span>
             )}
           </div>
 
           {/* Sponsor Award Icon */}
-          <div className="absolute bottom-2 left-2 w-6 h-6 rounded-md bg-white/90 backdrop-blur-md flex items-center justify-center border border-white shadow-sm z-10">
-            <Award className="w-3.5 h-3.5 text-amber-600" />
+          <div className="absolute bottom-2 left-2 w-5 h-5 rounded-md bg-white/90 backdrop-blur-md flex items-center justify-center border border-white shadow-xs z-10">
+            <Award className="w-3 h-3 text-amber-600" />
           </div>
         </div>
 
-        {/* 3. Content Details & Action Controls: Balanced & Spacious layout */}
-        <div className="p-3 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/40">
+        {/* 3. Content Details & Action Controls: Sized to fit 350px exactly */}
+        <div className="h-[152px] min-h-[152px] max-h-[152px] p-2.5 flex-1 flex flex-col justify-between bg-gradient-to-b from-white to-amber-50/40 shrink-0">
           <div>
-            {/* Standard Platform Image Thumbnail (55x55 px square) + Title with moderate spacing to avoid text overlap */}
-            <div className="flex items-start gap-2.5 mb-2">
-              <div className="w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 border-amber-400 shadow-md shrink-0 bg-slate-900 flex items-center justify-center">
+            {/* Standard Platform Image Thumbnail + Title */}
+            <div className="flex items-start gap-2 mb-1">
+              <div className="w-10 h-10 min-w-10 min-h-10 rounded-lg overflow-hidden border border-amber-400 shadow-xs shrink-0 bg-slate-900 flex items-center justify-center">
                 <img 
                   src={currentBanner.imageUrl || '/icon.svg'} 
                   alt={currentBanner.sponsorName}
-                  className="w-[55px] h-[55px] object-cover"
+                  className="w-10 h-10 object-cover"
                 />
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1 mb-0.5">
-                  <span className="px-1.5 py-0.2 bg-amber-100 text-amber-800 border border-amber-300 font-mono text-[9px] font-black rounded">
+                  <span className="px-1 py-0.2 bg-amber-100 text-amber-800 border border-amber-300 font-mono text-[8.5px] font-black rounded">
                     AD
                   </span>
-                  <span className="text-[10.5px] font-black text-slate-600 truncate">
+                  <span className="text-[10px] font-black text-slate-600 truncate">
                     {currentBanner.sponsorName}
                   </span>
                 </div>
-                <h3 className="text-xs sm:text-[13px] font-black text-slate-900 leading-snug line-clamp-2">
+                <h3 className="text-xs font-black text-slate-900 leading-snug line-clamp-1">
                   {currentBanner.title}
                 </h3>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2 font-medium">
-              منصة شغل وتقنية • استكشف العرض الحصري وقم بالتحميل والتثبيت المباشر
+            <p className="text-[10px] text-slate-600 leading-tight line-clamp-1 font-medium">
+              منصة شغل وتقنية • استكشف العرض الحصري والخدمات المعتمدة
             </p>
           </div>
 
-          <div className="mt-2 pt-2 border-t border-amber-100">
+          <div className="pt-1.5 border-t border-amber-100">
             {/* Indicators if multiple banners */}
             {activeBanners.length > 1 && (
-              <div className="flex items-center justify-between mb-1.5 text-[9px] text-slate-400">
+              <div className="flex items-center justify-between mb-1 text-[8.5px] text-slate-400">
                 <span>إعلان {currentIdx + 1} من {activeBanners.length}</span>
                 <div className="flex items-center gap-1">
                   {activeBanners.map((_, i) => (
@@ -305,7 +305,7 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
                       key={i}
                       onClick={() => setCurrentIdx(i)}
                       className={`cursor-pointer rounded-full transition-all ${
-                        i === currentIdx ? 'w-3 h-1 bg-amber-500' : 'w-1 h-1 bg-slate-300'
+                        i === currentIdx ? 'w-2.5 h-1 bg-amber-500' : 'w-1 h-1 bg-slate-300'
                       }`}
                     />
                   ))}
@@ -314,35 +314,35 @@ export const SquareBannerAd350: React.FC<SquareBannerAd350Props> = ({ className 
             )}
 
             {/* 4. Action CTA Download / Install / Contact Button */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {currentBanner.phoneNumber && (
                 <a
                   href={`https://wa.me/${currentBanner.phoneNumber.replace(/[^\d+]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 border border-emerald-400"
+                  className="py-1.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] shadow-xs flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer shrink-0 border border-emerald-400"
                   title={`تواصل مع المعلن: ${currentBanner.phoneNumber}`}
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">واتساب / هاتف</span>
+                  <MessageCircle className="w-3 h-3" />
+                  <span className="hidden xs:inline">واتساب</span>
                 </a>
               )}
 
               <button
                 onClick={handleOpenAd}
-                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs shadow-md shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-[11px] shadow-sm shadow-red-600/20 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
               >
                 {currentBanner.buttonType === 'download' ? (
-                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Download className="w-3 h-3 stroke-[2.5]" />
                 ) : currentBanner.buttonType === 'install' ? (
-                  <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Download className="w-3 h-3 stroke-[2.5]" />
                 ) : (
-                  <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <ExternalLink className="w-3 h-3 stroke-[2.5]" />
                 )}
                 <span className="truncate">
                   {currentBanner.buttonLabel || (currentBanner.buttonType === 'download' ? 'تحميل الآن' : currentBanner.buttonType === 'install' ? 'تثبيت التطبيق' : 'انتقال')}
                 </span>
-                <ChevronLeft className="w-3.5 h-3.5 stroke-[3] shrink-0" />
+                <ChevronLeft className="w-3 h-3 stroke-[3] shrink-0" />
               </button>
             </div>
           </div>
