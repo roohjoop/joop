@@ -39,11 +39,12 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
   currentEmail
 }) => {
   const [emailInput, setEmailInput] = useState(currentEmail || '');
+  const [usernameInput, setUsernameInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [showManualInput, setShowManualInput] = useState(false);
+  const [showManualInput, setShowManualInput] = useState(true); // Default open for ease of access
   const [knownAccounts, setKnownAccounts] = useState<KnownDeviceAccount[]>([]);
 
   // Load known accounts detected on this device/phone
@@ -111,6 +112,7 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
       const cleanEmail = user.email.trim().toLowerCase();
       const displayName = user.displayName || cleanEmail.split('@')[0];
       const photoURL = user.photoURL || '';
+      const customUsername = usernameInput.trim() || displayName.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
 
       // Record this account into known device accounts
       saveToKnownAccounts(cleanEmail, displayName, photoURL);
@@ -118,10 +120,11 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
       // Welcome coins
       const welcome = grantAccountWelcomeCoins(cleanEmail);
 
-      // Persist profile
+      // Persist profile with username
       await saveUserProfileToFirestore({
         id: user.uid,
         name: displayName,
+        username: customUsername,
         email: cleanEmail,
         avatar: photoURL || undefined,
         role: 'صاحب عمل / معلن وظائف',
@@ -145,7 +148,7 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
 
       setSuccessMsg(`تم استدعاء وربط الحساب بنجاح: ${cleanEmail}`);
       setTimeout(() => {
-        onSelectAccount(cleanEmail, user);
+        onSelectAccount(cleanEmail, { ...user, username: customUsername });
         onClose();
       }, 600);
     } catch (err: any) {
@@ -174,14 +177,15 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
       const fbUser = await loginWithEmailAccount(cleanEmail, account.name || cleanEmail.split('@')[0]);
       saveToKnownAccounts(cleanEmail, account.name, account.avatar);
       grantAccountWelcomeCoins(cleanEmail);
+      const customUsername = usernameInput.trim() || (account.name || cleanEmail.split('@')[0]).toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
 
       setSuccessMsg(`تم تسجيل الدخول واسترجاع بيانات: ${cleanEmail}`);
       setTimeout(() => {
-        onSelectAccount(cleanEmail, fbUser);
+        onSelectAccount(cleanEmail, { ...fbUser, username: customUsername });
         onClose();
       }, 500);
     } catch (err) {
-      onSelectAccount(cleanEmail);
+      onSelectAccount(cleanEmail, { username: usernameInput.trim() });
       onClose();
     } finally {
       setIsLoading(false);
@@ -207,12 +211,14 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
       const fbUser = await loginWithEmailAccount(cleanEmail, cleanEmail.split('@')[0]);
       const uid = fbUser?.uid || `usr_${cleanEmail.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       const welcome = grantAccountWelcomeCoins(cleanEmail);
+      const customUsername = usernameInput.trim() || cleanEmail.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
 
       saveToKnownAccounts(cleanEmail, cleanEmail.split('@')[0]);
 
       await saveUserProfileToFirestore({
         id: uid,
         name: cleanEmail.split('@')[0],
+        username: customUsername,
         email: cleanEmail,
         role: 'صاحب عمل / معلن وظائف',
         coinsBalance: welcome.coins || 50,
@@ -235,12 +241,12 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
 
       setSuccessMsg('تم تأكيد وربط الحساب بنجاح!');
       setTimeout(() => {
-        onSelectAccount(cleanEmail, fbUser);
+        onSelectAccount(cleanEmail, { ...fbUser, username: customUsername });
         onClose();
       }, 500);
     } catch (err) {
       console.error('Error during email account confirmation:', err);
-      onSelectAccount(cleanEmail);
+      onSelectAccount(cleanEmail, { username: usernameInput.trim() });
       onClose();
     } finally {
       setIsLoading(false);
@@ -275,16 +281,16 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-blue-50/40 to-slate-50">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-red-50/50 via-white to-blue-50/70">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-blue-600 shadow-sm flex items-center justify-center shrink-0 text-white">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-md shadow-blue-500/20 flex items-center justify-center shrink-0 text-white">
+              <Sparkles className="w-5 h-5 text-amber-300" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-900">ربط وتأكيد الحساب شغل وتقنية</h3>
-              <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+              <h3 className="text-sm sm:text-base font-black text-slate-900">ربط البريد وتفعيل الحساب</h3>
+              <p className="text-[10.5px] text-blue-700 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>استدعاء مباشر من فايربيز وحسابات الهاتف</span>
+                <span>لإطلاق الحملات الإعلانية وحجز اسم المستخدم المعتمد</span>
               </p>
             </div>
           </div>
@@ -308,27 +314,49 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
                 <span className="text-[9px] bg-white text-orange-700 px-1.5 py-0.2 rounded-full font-black">مجاناً</span>
               </div>
               <p className="text-[10px] text-amber-100 font-medium mt-0.5 leading-tight">
-                تُضاف إلى حسابك فوراً لإنشاء وترويج الإعلانات والوظائف
+                تُضاف لرصيدك مباشرة لدعم إطلاق حملتك الإعلانية ونشر إعلاناتك
               </p>
             </div>
           </div>
         </div>
 
+        {/* Value Proposition Highlights */}
+        <div className="px-4 pt-3 pb-1 bg-slate-50 border-b border-slate-100">
+          <div className="grid grid-cols-2 gap-2 text-[10.5px] font-bold text-slate-700">
+            <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-red-600 font-black">📢</span>
+              <span className="truncate">إنشاء وإدارة الحملات</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-blue-600 font-black">🔗</span>
+              <span className="truncate">مسار مخصص بالاسم</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-emerald-600 font-black">☁️</span>
+              <span className="truncate">مزامنة فايربيز و R2</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white p-2 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-indigo-600 font-black">🛡️</span>
+              <span className="truncate">حفظ الصور والأدوات</span>
+            </div>
+          </div>
+        </div>
+
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar">
+        <div className="p-4 sm:p-5 space-y-4 max-h-[72vh] overflow-y-auto no-scrollbar">
 
           {/* Primary Action: One-Tap Auto Account Chooser via Google & Phone Accounts */}
           <div className="p-4 bg-gradient-to-br from-blue-50 via-indigo-50/50 to-white rounded-2xl border-2 border-blue-200/80 shadow-xs space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <span className="text-[10px] bg-blue-600 text-white font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  موصى به • تلقائي
+                  موصى به • فوري
                 </span>
                 <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-1.5">
-                  ربط الحساب تلقائياً عبر Google
+                  ربط وتأكيد الحساب عبر Google
                 </h4>
                 <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                  استدعاء قائمة إيميلات هاتفك الرسمية لاختيار البريد بنقرة واحدة، واسترجاع إعلاناتك وبياناتك فورياً من فايربيز.
+                  ربط مباشر بحساب هاتفك بنقرة واحدة، واسترجاع إعلاناتك وحملاتك السابقة فورياً من فايربيز.
                 </p>
               </div>
               <div className="w-10 h-10 rounded-2xl bg-white shadow-xs border border-blue-100 flex items-center justify-center shrink-0">
@@ -434,67 +462,88 @@ export const GoogleAccountPickerModal: React.FC<GoogleAccountPickerModalProps> =
             </div>
           )}
 
-          {/* 3. Manual Email Input Toggle / Form */}
-          <div className="pt-1 border-t border-slate-100">
-            {!showManualInput ? (
-              <button
-                type="button"
-                onClick={() => setShowManualInput(true)}
-                className="w-full py-2 text-center text-[11px] font-bold text-slate-500 hover:text-blue-600 transition-colors cursor-pointer flex items-center justify-center gap-1"
-              >
-                <span>أو إدخال البريد الإلكتروني يدوياً</span>
-              </button>
-            ) : (
-              <form onSubmit={handleSubmitManual} className="space-y-3 pt-2 animate-in fade-in">
-                <div>
-                  <label className="text-xs font-black text-slate-800 block mb-1.5">
-                    البريد الإلكتروني يدوياً:
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      required
-                      value={emailInput}
-                      onChange={(e) => {
-                        setEmailInput(e.target.value);
-                        if (errorMsg) setErrorMsg('');
-                      }}
-                      placeholder="name@example.com"
-                      dir="ltr"
-                      className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none text-left"
-                    />
-                    <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                  </div>
-                </div>
+          {/* 3. Manual Email & Username Input Form */}
+          <div className="pt-2 border-t border-slate-100">
+            <form onSubmit={handleSubmitManual} className="space-y-3 animate-in fade-in">
+              <div className="text-xs font-black text-slate-800 flex items-center justify-between">
+                <span>أو ربط الحساب بإدخال البريد الإلكتروني:</span>
+                <span className="text-[10px] text-slate-400 font-normal">تسجيل مباشر</span>
+              </div>
 
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowManualInput(false)}
-                    className="px-3 py-2 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-100 cursor-pointer"
-                  >
-                    إخفاء الإدخال اليدوي
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading || isGoogleLoading}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>جارٍ التأكيد...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>تأكيد الإيميل</span>
-                      </>
-                    )}
-                  </button>
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  البريد الإلكتروني المعتمد *
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    required
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      if (errorMsg) setErrorMsg('');
+                      // auto-suggest username if blank
+                      if (!usernameInput && e.target.value.includes('@')) {
+                        setUsernameInput(e.target.value.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_'));
+                      }
+                    }}
+                    placeholder="name@example.com"
+                    dir="ltr"
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none text-left"
+                  />
+                  <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
                 </div>
-              </form>
-            )}
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  اسم المستخدم المطلوب (Username) لربط مسارك الخاص:
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, ''))}
+                    placeholder="مثال: ahmed_pro"
+                    dir="ltr"
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none text-left pl-8"
+                  />
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">@</span>
+                </div>
+                {usernameInput && (
+                  <p className="text-[10px] text-blue-700 font-mono mt-1 text-left dir-ltr truncate">
+                    https://roohpro.com/jop/u/{usernameInput}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 py-2 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-100 cursor-pointer"
+                >
+                  استكشاف التطبيق أولاً
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading || isGoogleLoading}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-blue-600 hover:from-red-500 hover:to-blue-500 text-white text-xs font-black shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 transition-all active:scale-98"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>جارٍ التأكيد والربط...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>ربط الحساب وتفعيل الحملات</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
 
         </div>

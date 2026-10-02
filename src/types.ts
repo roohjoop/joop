@@ -48,6 +48,7 @@ export interface FollowerUser {
 export interface UserProfile {
   id?: string;
   name: string;
+  username?: string; // اسم المستخدم المخصص مثل @ahmed_pro لمسارات /u/:username والحملات الإعلانية
   role: string;
   avatar: string;
   phone: string;

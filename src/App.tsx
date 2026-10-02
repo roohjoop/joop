@@ -232,6 +232,17 @@ export default function App() {
     localStorage.setItem('shoghl_active_email', activeAccountEmail);
   }, [activeAccountEmail]);
 
+  // When user enters the application: display attractive account linking modal if not connected yet
+  useEffect(() => {
+    const hasActive = localStorage.getItem('shoghl_active_email');
+    if (!hasActive) {
+      const timer = setTimeout(() => {
+        setIsAuthModalOpen(true);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // Ensure Firebase session and sync user profile on authentication state changes
   useEffect(() => {
     initAdCooldownSessionBaseline();
@@ -345,6 +356,7 @@ export default function App() {
 
       const newProfile: UserProfile = {
         name: baseProfile?.name || googleUserData?.displayName || cleanEmail.split('@')[0],
+        username: googleUserData?.username || baseProfile?.username || cleanEmail.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30),
         role: baseProfile?.role || (intent === 'employer' ? 'صاحب عمل / معلن وظائف' : 'باحث عن عمل / مهني وفني'),
         avatar: baseProfile?.avatar || googleUserData?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         phone: baseProfile?.phone || '',
@@ -1733,7 +1745,7 @@ export default function App() {
         onSelectAccount={(email, userData) => {
           handleConnectAccount(email, 'employer', userData);
           setIsAuthModalOpen(false);
-          setAddChoiceOpen(true);
+          triggerToast(`تم ربط حسابك بنجاح (${email}) وتفعيل جميع المسارات والحملات`);
         }}
         currentEmail={activeAccountEmail}
       />

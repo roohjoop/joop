@@ -56,7 +56,7 @@ import {
   grantAccountWelcomeCoins,
   getRoohAdSyncInfo 
 } from '../utils/coinsEngine';
-import { buildShortAdUrl, buildUserProfileUrl, applyPageSeo } from '../utils/seoAndRouting';
+import { buildShortAdUrl, buildUserProfileUrl, applyPageSeo, generateAuthorShortSlug } from '../utils/seoAndRouting';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -323,12 +323,16 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       <h3 className="text-sm sm:text-base font-black text-slate-900">
                         حسابي الشخصي
                       </h3>
-                      <span className="bg-amber-100 text-amber-900 text-[10px] px-2 py-0.5 rounded-full font-black border border-amber-300">
-                        غير متصل
-                      </span>
+                      <button
+                        onClick={() => setIsGooglePickerOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black border border-blue-500 shadow-xs cursor-pointer flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        <Sparkles className="w-3 h-3 text-amber-300" />
+                        <span>ربط البريد وتفعيل الحساب</span>
+                      </button>
                     </div>
                     <p className="text-[11px] text-slate-500 font-bold mt-0.5">
-                      سجّل الدخول أو اربط حسابك لحفظ إعلاناتك
+                      اربط بريدك لإطلاق حملتك وحفظ مساراتك وإعلاناتك في فايربيز و R2
                     </p>
                   </div>
                 </div>
@@ -364,6 +368,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       <h3 className="text-sm sm:text-base font-black text-slate-900 truncate">
                         {userProfile.name}
                       </h3>
+                      <span className="text-[10px] text-blue-700 font-mono font-bold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
+                        @{userProfile.username || generateAuthorShortSlug(userProfile.name || 'user')}
+                      </span>
                       <span className={`text-[9.5px] px-2 py-0.5 rounded-full font-black ${
                         userProfile.userIntent === 'employer' 
                           ? 'bg-red-100 text-red-700 border border-red-200' 
@@ -1050,6 +1057,73 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                         <span>تم حفظ وتحديث بيانات ملفك الشخصي بنجاح!</span>
                       </div>
                     )}
+
+                    {/* اسم المستخدم المخصص (Username) ورابط البروفايل المباشر */}
+                    <div className="p-3.5 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50 border-2 border-blue-200 rounded-2xl space-y-2.5 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-blue-600" />
+                          <span>اسم المستخدم (Username) ورابط ملفك المخصص:</span>
+                        </label>
+                        <span className="text-[10px] bg-blue-600 text-white font-black px-2 py-0.5 rounded-full">
+                          مسار حصري
+                        </span>
+                      </div>
+                      
+                      <div className="relative">
+                        <input
+                          type="text"
+                          name="username"
+                          value={formData.username || ''}
+                          onChange={(e) => {
+                            const clean = e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_-]/g, '');
+                            setFormData((prev) => ({ ...prev, username: clean }));
+                          }}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm font-bold focus:outline-none focus:border-blue-600 pl-8 text-left dir-ltr"
+                          placeholder={generateAuthorShortSlug(formData.name || 'username')}
+                        />
+                        <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">@</span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 text-[10.5px] bg-white p-2 rounded-xl border border-blue-100">
+                        <span className="text-blue-800 font-mono truncate dir-ltr text-left">
+                          https://roohpro.com/jop/u/{formData.username || generateAuthorShortSlug(formData.name || 'user')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = `https://roohpro.com/jop/u/${formData.username || generateAuthorShortSlug(formData.name || 'user')}`;
+                            navigator.clipboard.writeText(url);
+                            setCopiedLink('profile');
+                            setTimeout(() => setCopiedLink(null), 2000);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold shrink-0 cursor-pointer flex items-center gap-1"
+                        >
+                          {copiedLink === 'profile' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedLink === 'profile' ? 'تم النسخ' : 'نسخ الرابط'}</span>
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 pt-1 text-[10.5px] text-slate-600">
+                        <span className="flex items-center gap-1 text-emerald-700 font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          <span>مرتبط ومحفوظ في السيرفر وفايربيز و R2 و D1</span>
+                        </span>
+                        {onOpenAddChoice && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose();
+                              onOpenAddChoice();
+                            }}
+                            className="text-red-600 hover:text-red-700 font-black cursor-pointer underline flex items-center gap-1"
+                          >
+                            <span>إنشاء حملة إعلانية جديدة الآن</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
                     {/* Role toggle (معلن عن عمل / باحث عن عمل) */}
                     <div>

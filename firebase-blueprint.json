@@ -33,6 +33,7 @@
       "properties": {
         "id": { "type": "string", "maxLength": 128 },
         "name": { "type": "string", "maxLength": 100 },
+        "username": { "type": "string", "maxLength": 80 },
         "role": { "type": "string", "maxLength": 60 },
         "bio": { "type": "string", "maxLength": 500 },
         "phone": { "type": "string", "maxLength": 30 },
