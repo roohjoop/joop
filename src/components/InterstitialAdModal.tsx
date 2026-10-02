@@ -11,7 +11,12 @@ import {
   ShieldCheck,
   ShieldAlert
 } from 'lucide-react';
-import { InterstitialAdConfig, getDeveloperAdsState, markInterstitialAdShown } from '../utils/adsManager';
+import { 
+  InterstitialAdConfig, 
+  getDeveloperAdsState, 
+  markInterstitialAdShown, 
+  validateAdRequirements 
+} from '../utils/adsManager';
 import { AdReportModal } from './AdReportModal';
 
 interface InterstitialAdModalProps {
@@ -30,13 +35,27 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
   const currentAdsState = getDeveloperAdsState();
   const adConfig = propAdConfig || currentAdsState.interstitialAd;
 
-  // Master switch: if platform ads are disabled, or not enabled, or video is missing, do not show
+  const validation = validateAdRequirements(adConfig);
+
+  // Master switch: verify all 3 conditions (video works, icon exists, title valid)
+  // If not met, do not show ad and close immediately
   useEffect(() => {
-    const hasVideo = Boolean(adConfig.mediaUrl && adConfig.mediaUrl.trim().length > 0 && !adConfig.mediaUrl.includes('ForBiggerBlazes'));
-    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !hasVideo)) {
+    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !validation.isValid)) {
       onClose();
     }
-  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, adConfig.mediaUrl]);
+  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, validation.isValid]);
+
+  // 10-second maximum failsafe: GUARANTEES skip/close button is unlocked after at most 10 seconds under all circumstances
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const maxWaitSeconds = Math.min(Math.max(adConfig.durationSeconds || 5, 3), 10);
+    const failsafeTimer = setTimeout(() => {
+      setCanSkip(true);
+    }, maxWaitSeconds * 1000);
+
+    return () => clearTimeout(failsafeTimer);
+  }, [isOpen, adConfig.durationSeconds]);
 
   const isVideo = adConfig.mediaType === 'video' || Boolean(
     adConfig.mediaUrl && (
@@ -184,7 +203,7 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
               </button>
             </div>
 
-            <div>
+            <div className="flex items-center gap-2">
               {canSkip ? (
                 <button
                   onClick={onClose}
@@ -196,13 +215,27 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
               ) : (
                 <div className="flex items-center gap-1.5 bg-black/70 border border-white/20 px-3 py-1 rounded-full text-[11px] font-mono font-bold text-slate-200 backdrop-blur-md">
                   <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-                  {isVideo ? (
-                    <span>
-                      متبقي لنهاية الفيديو: {videoRemainingSeconds > 0 ? `${videoRemainingSeconds} ث` : 'لحظات...'}
-                    </span>
-                  ) : (
-                    <span>تخطي خلال: {skipRemaining} ث</span>
-                  )}
+                  <span>
+                    تخطي خلال: {Math.min(isVideo ? (videoRemainingSeconds || skipRemaining) : skipRemaining, 10)} ث
+                  </span>
+                </div>
+              )}
+
+              {/* زر الإكس في الأعلى: متوفر دائماً، ويتفعل فور انتهاء المهلة أو بعد مرور 10 ثوانٍ كحد أقصى */}
+              {canSkip ? (
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-red-600/50 border border-white/80 active:scale-95 animate-in zoom-in"
+                  title="إغلاق الإعلان فوراً"
+                >
+                  <X className="w-4 h-4 stroke-[3]" />
+                </button>
+              ) : (
+                <div 
+                  className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-slate-400 select-none opacity-60"
+                  title="سيتفعل زر الإغلاق خلال ثوانٍ معدودة"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2]" />
                 </div>
               )}
             </div>
@@ -233,6 +266,10 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
                   onLoadedMetadata={handleLoadedMetadata}
                   onTimeUpdate={handleTimeUpdate}
                   onEnded={handleVideoEnded}
+                  onError={() => {
+                    console.warn('Interstitial video failed to play: unlocking close button');
+                    setCanSkip(true);
+                  }}
                   className="w-full h-full object-contain"
                 />
 
@@ -271,7 +308,7 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
               {/* Standardized 55x55 pixel platform ad image */}
               <div className="w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 border-amber-400/80 shadow-md shrink-0 bg-slate-900 flex items-center justify-center">
                 <img 
-                  src={adConfig.mediaUrl || '/icon.svg'} 
+                  src={adConfig.iconUrl || (!isVideo ? adConfig.mediaUrl : '') || '/icon.svg'} 
                   alt={adConfig.sponsorName}
                   className="w-[55px] h-[55px] object-cover"
                 />

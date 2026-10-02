@@ -48,6 +48,7 @@ export interface InterstitialAdConfig {
   frequencyInterval: number; // e.g., every 5 ads
   title: string;
   sponsorName: string;
+  iconUrl?: string; // صورة أيقونة الإعلان المعروضة
   mediaUrl: string;
   mediaType: 'image' | 'video';
   waitForVideoEnd: boolean; // if true, wait until video finishes before allowing close
@@ -64,6 +65,7 @@ export interface RewardedAdConfig {
   triggerOnCopyPhone: boolean;
   title: string;
   subtitle: string;
+  iconUrl?: string; // صورة أيقونة الإعلان المعروضة
   mediaUrl: string;
   mediaType: 'image' | 'video';
   waitForVideoEnd: boolean; // if true, ad must finish video before granting reward
@@ -125,12 +127,30 @@ export function getLastAnyAdTimestamp(): number {
   }
 }
 
+let isDeveloperDashboardActiveFlag = false;
+
+/**
+ * Sets whether the developer dashboard is currently open/active.
+ * While active, all ad runs, timers, popups, and triggers are strictly blocked.
+ */
+export function setDeveloperDashboardActive(active: boolean): void {
+  isDeveloperDashboardActiveFlag = active;
+}
+
+/**
+ * Returns whether the developer dashboard is currently open/active.
+ */
+export function isDeveloperDashboardActive(): boolean {
+  return isDeveloperDashboardActiveFlag;
+}
+
 /**
  * Checks whether at least 1 minute (60 seconds) has elapsed since the last ad of ANY type.
  * Enforces mutual exclusion: a rewarded ad cannot show right after an interstitial ad,
  * and an interstitial ad cannot show right after a rewarded ad.
  */
 export function canShowAnyAd(): boolean {
+  if (isDeveloperDashboardActiveFlag) return false;
   try {
     const lastShown = getLastAnyAdTimestamp();
     if (!lastShown) return true;
@@ -143,22 +163,26 @@ export function canShowAnyAd(): boolean {
 
 /**
  * Checks whether an interstitial ad is allowed to show:
- * 1. Must be enabled from the inside
- * 2. Must have an available valid video URL
- * 3. Must satisfy the 1-minute shared mutual cooldown
+ * 1. Must NOT be inside the developer dashboard
+ * 2. Must be enabled from the inside
+ * 3. Must have an available valid video URL
+ * 4. Must satisfy the 1-minute shared mutual cooldown
  */
 export function canShowInterstitialAd(): boolean {
+  if (isDeveloperDashboardActiveFlag) return false;
   if (!isInterstitialAdConfiguredAndActive()) return false;
   return canShowAnyAd();
 }
 
 /**
  * Checks whether a rewarded ad is allowed to show:
- * 1. Must be enabled from the inside
- * 2. Must have an available valid video URL
- * 3. Must satisfy the 1-minute shared mutual cooldown
+ * 1. Must NOT be inside the developer dashboard
+ * 2. Must be enabled from the inside
+ * 3. Must have an available valid video URL
+ * 4. Must satisfy the 1-minute shared mutual cooldown
  */
 export function canShowRewardedAd(): boolean {
+  if (isDeveloperDashboardActiveFlag) return false;
   if (!isRewardedAdConfiguredAndActive()) return false;
   return canShowAnyAd();
 }
@@ -336,6 +360,7 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
     frequencyInterval: 5, // Triggers after 1 min cooldown
     title: 'فرصة حصرية: انضم لأكبر شبكة مهنية معتمدة وحقق دخل إضافي',
     sponsorName: 'منصة شغل وتقنية Rooh Pro',
+    iconUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=200&auto=format&fit=crop&q=80',
     mediaUrl: '', // No ad video by default: ads will NOT run currently until valid video is provided
     mediaType: 'video',
     waitForVideoEnd: true,
@@ -351,6 +376,7 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
     triggerOnCopyPhone: true,
     title: 'إعلان مكافأة فيديو: شاهد حتى نهاية الفيديو واحصل على كوينات فورية',
     subtitle: 'شاهد العرض الترويجي صامتاً مع إمكانية تشغيل الصوت لتوثيق التواصل وفتح الرقم المباشر',
+    iconUrl: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=200&auto=format&fit=crop&q=80',
     mediaUrl: '', // No ad video by default: ads will NOT run currently until valid video is provided
     mediaType: 'video',
     waitForVideoEnd: true,
@@ -370,30 +396,83 @@ export const DEFAULT_ADS_STATE: DeveloperAdsState = {
 export function isPlaceholderOrEmptyVideo(url?: string): boolean {
   if (!url) return true;
   const trimmed = url.trim();
-  if (trimmed === '' || trimmed.includes('ForBiggerBlazes')) return true;
+  if (trimmed === '' || trimmed.length < 5 || trimmed.includes('ForBiggerBlazes')) return true;
   return false;
 }
 
 /**
- * Checks whether the interstitial ad has an available valid video AND is enabled from the inside.
+ * Helper to validate if a string is a valid non-empty media/icon URL or path
  */
-export function isInterstitialAdConfiguredAndActive(state?: DeveloperAdsState): boolean {
-  const current = state || getDeveloperAdsState();
-  if (!current.platformAdsEnabled) return false;
-  if (!current.interstitialAd || !current.interstitialAd.enabled) return false;
-  if (isPlaceholderOrEmptyVideo(current.interstitialAd.mediaUrl)) return false;
-  return true;
+export function isValidMediaUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (trimmed.length < 5) return false;
+  if (trimmed.includes('ForBiggerBlazes')) return false; // Known placeholder
+  return (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('data:')
+  );
 }
 
 /**
- * Checks whether the rewarded ad has an available valid video AND is enabled from the inside.
+ * Validates the three mandatory requirements for Rewarded & Interstitial Ads:
+ * 1. وجود فيديو يعمل بالفعل أو صورة تعمل (Valid, working mediaUrl)
+ * 2. وجود صورة أيقونة الإعلان (Valid, working iconUrl)
+ * 3. العنوان يكون صحيح (Valid title with real content)
+ */
+export function validateAdRequirements(ad?: {
+  title?: string;
+  mediaUrl?: string;
+  iconUrl?: string;
+  mediaType?: 'image' | 'video';
+  enabled?: boolean;
+}): { isValid: boolean; reason?: string } {
+  if (!ad) return { isValid: false, reason: 'الإعلان غير موجود' };
+  if (!ad.enabled) return { isValid: false, reason: 'الإعلان معطل من الداخل' };
+
+  // Condition 1: العنوان يكون صحيح (Title must be valid and at least 3 characters)
+  if (!ad.title || ad.title.trim().length < 3) {
+    return { isValid: false, reason: 'عنوان الإعلان غير صحيح أو فارغ' };
+  }
+
+  // Condition 2: وجود فيديو يعمل بالفعل أو صورة تعمل (Media URL must be valid and non-empty)
+  if (!isValidMediaUrl(ad.mediaUrl)) {
+    return { isValid: false, reason: 'رابط فيديو أو وسائط الإعلان غير صالح أو غير موجود' };
+  }
+
+  // Condition 3: وجود صورة أيقونة الإعلان (Ad icon image must be valid and non-empty)
+  const icon = ad.iconUrl || '';
+  if (!isValidMediaUrl(icon)) {
+    return { isValid: false, reason: 'صورة أيقونة الإعلان غير متوفرة أو غير صالحة' };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Checks whether the interstitial ad has an available valid video AND icon AND title, AND is enabled.
+ */
+export function isInterstitialAdConfiguredAndActive(state?: DeveloperAdsState): boolean {
+  if (isDeveloperDashboardActiveFlag) return false;
+  const current = state || getDeveloperAdsState();
+  if (!current.platformAdsEnabled) return false;
+  if (!current.interstitialAd || !current.interstitialAd.enabled) return false;
+  const validation = validateAdRequirements(current.interstitialAd);
+  return validation.isValid;
+}
+
+/**
+ * Checks whether the rewarded ad has an available valid video AND icon AND title, AND is enabled.
  */
 export function isRewardedAdConfiguredAndActive(state?: DeveloperAdsState): boolean {
+  if (isDeveloperDashboardActiveFlag) return false;
   const current = state || getDeveloperAdsState();
   if (!current.platformAdsEnabled) return false;
   if (!current.rewardedAd || !current.rewardedAd.enabled) return false;
-  if (isPlaceholderOrEmptyVideo(current.rewardedAd.mediaUrl)) return false;
-  return true;
+  const validation = validateAdRequirements(current.rewardedAd);
+  return validation.isValid;
 }
 
 /**
@@ -413,6 +492,14 @@ export function getDeveloperAdsState(): DeveloperAdsState {
       interstitialAd: { ...DEFAULT_ADS_STATE.interstitialAd, ...(parsed.interstitialAd || {}) },
       rewardedAd: { ...DEFAULT_ADS_STATE.rewardedAd, ...(parsed.rewardedAd || {}) }
     };
+
+    // Ensure valid iconUrl is present
+    if (!merged.interstitialAd.iconUrl || !isValidMediaUrl(merged.interstitialAd.iconUrl)) {
+      merged.interstitialAd.iconUrl = DEFAULT_ADS_STATE.interstitialAd.iconUrl;
+    }
+    if (!merged.rewardedAd.iconUrl || !isValidMediaUrl(merged.rewardedAd.iconUrl)) {
+      merged.rewardedAd.iconUrl = DEFAULT_ADS_STATE.rewardedAd.iconUrl;
+    }
 
     // Clean up any legacy placeholder videos from prior sessions so ads do NOT run currently
     let modified = false;

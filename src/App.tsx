@@ -542,10 +542,25 @@ export default function App() {
   const [isInterstitialAdOpen, setIsInterstitialAdOpen] = useState(false);
   const adsAdvanceCounterRef = useRef(0);
 
+  // When Developer Dashboard or Auth is open: immediately close and stop all ads completely
+  useEffect(() => {
+    if (isDeveloperDashboardOpen || isDeveloperAuthOpen) {
+      setIsInterstitialAdOpen(false);
+      setIsRewardedAdOpen(false);
+    }
+  }, [isDeveloperDashboardOpen, isDeveloperAuthOpen]);
+
   // Listen for custom trigger for rewarded ad (on WhatsApp click or Phone copy)
   useEffect(() => {
     const handleRewardedTrigger = (e: any) => {
       const { action, type } = e.detail || {};
+
+      // If Developer Dashboard is open, never run ads under any circumstance
+      if (isDeveloperDashboardOpen || isDeveloperAuthOpen) {
+        if (action) action();
+        return;
+      }
+
       const currentAds = getDeveloperAdsState();
       
       // Master switch or ad disabled check
@@ -577,7 +592,7 @@ export default function App() {
 
     window.addEventListener('rooh_trigger_rewarded_ad', handleRewardedTrigger);
     return () => window.removeEventListener('rooh_trigger_rewarded_ad', handleRewardedTrigger);
-  }, []);
+  }, [isDeveloperDashboardOpen, isDeveloperAuthOpen]);
 
   // Check URL routing for SEO and dedicated paths (/privacy or roohpro.com/jop/privacy)
   useEffect(() => {
@@ -825,6 +840,7 @@ export default function App() {
   // Advance to next card (shorts-style 10-second auto-advance or manual next)
   const handleAdvanceNext = () => {
     if (filteredPosts.length === 0) return;
+    if (isDeveloperDashboardOpen || isDeveloperAuthOpen) return;
 
     // Smart Interstitial Ad trigger: requires at least 1 minute (60s) elapsed since the last ad (rewarded or interstitial)
     // No requirement to watch 5 windows first
@@ -848,6 +864,7 @@ export default function App() {
 
   const handleAdvancePrev = () => {
     if (filteredPosts.length === 0) return;
+    if (isDeveloperDashboardOpen || isDeveloperAuthOpen) return;
 
     const currentAds = getDeveloperAdsState();
     if (
@@ -1342,7 +1359,7 @@ export default function App() {
                       <ReelCard
                         post={currentReelPost}
                         isActive={true}
-                        isAutoAdvanceActive={isAutoAdvanceActive}
+                        isAutoAdvanceActive={isAutoAdvanceActive && !isDeveloperDashboardOpen && !isDeveloperAuthOpen}
                         onAdvanceNext={handleAdvanceNext}
                         onAdvancePrev={handleAdvancePrev}
                         onLike={handleToggleLike}

@@ -75,6 +75,10 @@ import {
   isInterstitialAdConfiguredAndActive,
   isRewardedAdConfiguredAndActive,
   isPlaceholderOrEmptyVideo,
+  isValidMediaUrl,
+  validateAdRequirements,
+  setDeveloperDashboardActive,
+  isDeveloperDashboardActive,
   updateAdLimits,
   resetAdStats,
   getPlatformTargetingCookies,
@@ -239,6 +243,25 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
     deleteDeveloperBanner(id);
     setAdsState(getDeveloperAdsState());
   };
+
+  // When Developer Dashboard is open: completely halt and prevent all ads from running or appearing
+  useEffect(() => {
+    if (isOpen) {
+      setDeveloperDashboardActive(true);
+      // Immediately pause and stop any playing video or audio across the entire document
+      document.querySelectorAll('video, audio').forEach((el) => {
+        try {
+          (el as HTMLMediaElement).pause();
+          (el as HTMLMediaElement).currentTime = 0;
+        } catch {}
+      });
+    } else {
+      setDeveloperDashboardActive(false);
+    }
+    return () => {
+      setDeveloperDashboardActive(false);
+    };
+  }, [isOpen]);
 
   const handleToggleBannerItem = (id: string, active: boolean) => {
     toggleBannerStatus(id, active);
@@ -1618,7 +1641,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                             posterImage={bannerForm.imageUrl.trim()}
                             title={bannerForm.title.trim() || 'معاينة الإعلان'}
                             isMuted={true}
-                            autoPlay={true}
+                            autoPlay={false}
                             className="w-full h-full"
                             aspectRatio="video"
                           />
@@ -2034,7 +2057,7 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                             posterImage={videoAdForm.imageUrl.trim()}
                             title={videoAdForm.title.trim() || 'معاينة إعلان الفيديو'}
                             isMuted={true}
-                            autoPlay={true}
+                            autoPlay={false}
                             className="w-full h-full"
                             aspectRatio="video"
                           />
@@ -2179,17 +2202,38 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                     </span>
                   </div>
 
-                  {isPlaceholderOrEmptyVideo(adsState.interstitialAd.mediaUrl) ? (
-                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>الإعلان البيني متوقف حالياً ولن يُعرض إلا بعد إدخال رابط فيديو صالح وتفعيله من الداخل.</span>
-                    </div>
-                  ) : (
-                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>فيديو الإعلان البيني متوفر {adsState.interstitialAd.enabled ? 'والإعلان نشط ويعمل' : 'ولكن الإعلان معطل من زر التفعيل'}.</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const v = validateAdRequirements(adsState.interstitialAd);
+                    return !v.isValid ? (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>شروط ظهور الإعلان البيني غير مكتملة ({v.reason})</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-amber-200/80 text-[10px]">
+                          <span className={adsState.interstitialAd.title?.trim().length >= 3 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {adsState.interstitialAd.title?.trim().length >= 3 ? '✓ العنوان صحيح' : '✗ العنوان ناقص'}
+                          </span>
+                          <span className={isValidMediaUrl(adsState.interstitialAd.mediaUrl) ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {isValidMediaUrl(adsState.interstitialAd.mediaUrl) ? '✓ الفيديو يعمل' : '✗ الفيديو مفقود'}
+                          </span>
+                          <span className={isValidMediaUrl(adsState.interstitialAd.iconUrl) ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {isValidMediaUrl(adsState.interstitialAd.iconUrl) ? '✓ الأيقونة متوفرة' : '✗ الأيقونة مفقودة'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>الشروط الثلاثة مكتملة: الفيديو يعمل + الأيقونة متوفرة + العنوان صحيح</span>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${adsState.interstitialAd.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                          {adsState.interstitialAd.enabled ? 'نشط ومعتمد' : 'معطل يدوياً'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-2.5 text-xs">
                     <div className="grid grid-cols-2 gap-2">
@@ -2279,6 +2323,29 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                       />
                     </div>
 
+                    <div>
+                      <label className="text-[10.5px] text-slate-600 block mb-1">رابط صورة أيقونة الإعلان البيني (Ad Icon Image URL)</label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-300 shrink-0 bg-slate-100 flex items-center justify-center shadow-xs">
+                          <img 
+                            src={adsState.interstitialAd.iconUrl || '/icon.svg'} 
+                            alt="Icon" 
+                            className="w-full h-full object-cover" 
+                          />
+                        </div>
+                        <input
+                          type="url"
+                          value={adsState.interstitialAd.iconUrl || ''}
+                          onChange={e => handleUpdateAdsState(prev => ({
+                            ...prev,
+                            interstitialAd: { ...prev.interstitialAd, iconUrl: e.target.value }
+                          }))}
+                          placeholder="https://images.unsplash.com/... أو رابط الصورة"
+                          className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none font-mono dir-ltr focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10.5px] text-slate-600 block mb-1">نص الزر</label>
@@ -2322,17 +2389,38 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                     </span>
                   </div>
 
-                  {isPlaceholderOrEmptyVideo(adsState.rewardedAd.mediaUrl) ? (
-                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>إعلان المكافأة متوقف حالياً ولن يُعرض إلا بعد إدخال رابط فيديو صالح وتفعيله من الداخل.</span>
-                    </div>
-                  ) : (
-                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>فيديو إعلان المكافأة متوفر {adsState.rewardedAd.enabled ? 'والإعلان نشط ويعمل' : 'ولكن الإعلان معطل من زر التفعيل'}.</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const v = validateAdRequirements(adsState.rewardedAd);
+                    return !v.isValid ? (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>شروط ظهور إعلان المكافأة غير مكتملة ({v.reason})</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-amber-200/80 text-[10px]">
+                          <span className={adsState.rewardedAd.title?.trim().length >= 3 ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {adsState.rewardedAd.title?.trim().length >= 3 ? '✓ العنوان صحيح' : '✗ العنوان ناقص'}
+                          </span>
+                          <span className={isValidMediaUrl(adsState.rewardedAd.mediaUrl) ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {isValidMediaUrl(adsState.rewardedAd.mediaUrl) ? '✓ الفيديو يعمل' : '✗ الفيديو مفقود'}
+                          </span>
+                          <span className={isValidMediaUrl(adsState.rewardedAd.iconUrl) ? 'text-emerald-700 font-bold' : 'text-rose-600 font-bold'}>
+                            {isValidMediaUrl(adsState.rewardedAd.iconUrl) ? '✓ الأيقونة متوفرة' : '✗ الأيقونة مفقودة'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>الشروط الثلاثة مكتملة: الفيديو يعمل + الأيقونة متوفرة + العنوان صحيح</span>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${adsState.rewardedAd.enabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                          {adsState.rewardedAd.enabled ? 'نشط ومعتمد' : 'معطل يدوياً'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-2.5 text-xs">
                     <div className="grid grid-cols-2 gap-2">
@@ -2416,6 +2504,29 @@ export const DeveloperDashboardModal: React.FC<DeveloperDashboardModalProps> = (
                         }))}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none font-mono dir-ltr focus:border-blue-500"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-[10.5px] text-slate-600 block mb-1">رابط صورة أيقونة إعلان المكافأة (Ad Icon Image URL)</label>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-300 shrink-0 bg-slate-100 flex items-center justify-center shadow-xs">
+                          <img 
+                            src={adsState.rewardedAd.iconUrl || '/icon.svg'} 
+                            alt="Icon" 
+                            className="w-full h-full object-cover" 
+                          />
+                        </div>
+                        <input
+                          type="url"
+                          value={adsState.rewardedAd.iconUrl || ''}
+                          onChange={e => handleUpdateAdsState(prev => ({
+                            ...prev,
+                            rewardedAd: { ...prev.rewardedAd, iconUrl: e.target.value }
+                          }))}
+                          placeholder="https://images.unsplash.com/... أو رابط الصورة"
+                          className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-xs outline-none font-mono dir-ltr focus:border-blue-500"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">

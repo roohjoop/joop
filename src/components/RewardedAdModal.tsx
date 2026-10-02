@@ -14,7 +14,12 @@ import {
   ShieldCheck,
   ShieldAlert
 } from 'lucide-react';
-import { RewardedAdConfig, getDeveloperAdsState, markRewardedAdShown } from '../utils/adsManager';
+import { 
+  RewardedAdConfig, 
+  getDeveloperAdsState, 
+  markRewardedAdShown, 
+  validateAdRequirements 
+} from '../utils/adsManager';
 import { addCoinsBonus } from '../utils/coinsEngine';
 import { playCustomNotificationSound } from '../utils/notifications';
 import { AdReportModal } from './AdReportModal';
@@ -63,17 +68,33 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState<number>(adConfig.countdownSeconds || 10);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
   const rewardGrantedRef = useRef<boolean>(false);
+  const validation = validateAdRequirements(adConfig);
 
-  // Master switch check: if platform ads are disabled by developer, or not enabled, or video is missing, automatically grant and bypass
+  // Master switch check: verify all 3 conditions (video works, icon exists, title valid)
+  // If not met, grant reward immediately and close without trapping the user
   useEffect(() => {
-    const hasVideo = Boolean(adConfig.mediaUrl && adConfig.mediaUrl.trim().length > 0 && !adConfig.mediaUrl.includes('ForBiggerBlazes'));
-    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !hasVideo)) {
-      addCoinsBonus(adConfig.rewardCoins || 5);
+    if (isOpen && (!currentAdsState.platformAdsEnabled || !adConfig.enabled || !validation.isValid)) {
+      if (!rewardGrantedRef.current) {
+        rewardGrantedRef.current = true;
+        addCoinsBonus(adConfig.rewardCoins || 5);
+      }
       if (onRewardCompleted) onRewardCompleted();
       if (onComplete) onComplete();
       onClose();
     }
-  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, adConfig.mediaUrl]);
+  }, [isOpen, currentAdsState.platformAdsEnabled, adConfig.enabled, validation.isValid]);
+
+  // 10-second maximum failsafe timer: GUARANTEES the ad can be closed after 10 seconds under all circumstances
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const maxWaitSeconds = Math.min(Math.max(adConfig.countdownSeconds || 10, 5), 10);
+    const failsafeTimer = setTimeout(() => {
+      triggerRewardCompletion();
+    }, maxWaitSeconds * 1000);
+
+    return () => clearTimeout(failsafeTimer);
+  }, [isOpen, adConfig.countdownSeconds]);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -233,17 +254,17 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
           </div>
         </div>
 
-        {/* Video / Countdown Timer or Completion Button */}
+        {/* Video / Countdown Timer and Guaranteed Top (X) Button */}
         <div className="flex items-center gap-2">
           {!isCompleted ? (
             <div className="flex items-center gap-1.5 bg-black/80 border border-white/20 px-3 py-1 rounded-full text-xs font-mono font-black text-white backdrop-blur-md shadow-lg">
               <Clock className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
               {isVideo ? (
                 <span>
-                  متبقي لنهاية الفيديو: {videoRemainingSeconds > 0 ? `${videoRemainingSeconds} ثانية` : 'لحظات...'}
+                  متبقي لنهاية الفيديو: {videoRemainingSeconds > 0 ? `${Math.min(videoRemainingSeconds, 10)} ثانية` : 'لحظات...'}
                 </span>
               ) : (
-                <span>متبقي: {secondsRemaining} ثانية</span>
+                <span>متبقي: {Math.min(secondsRemaining, 10)} ثانية</span>
               )}
             </div>
           ) : (
@@ -256,15 +277,22 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
             </button>
           )}
 
-          {/* Close button - ONLY enabled once video ends or countdown finishes */}
-          {isCompleted && (
+          {/* زر الإكس في الأعلى: متوفر دائماً، ويتفعل فور انتهاء الفيديو أو بعد مرور 10 ثوانٍ كحد أقصى */}
+          {isCompleted ? (
             <button
               onClick={handleFinishAndProceed}
-              className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors cursor-pointer"
-              title="إغلاق الإعلان"
+              className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-red-600/50 border-2 border-white/90 active:scale-95 animate-in zoom-in"
+              title="إغلاق الإعلان فوراً"
             >
-              <X className="w-4 h-4 text-white" />
+              <X className="w-5 h-5 stroke-[3]" />
             </button>
+          ) : (
+            <div 
+              className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-slate-400 select-none opacity-60"
+              title="سيتفعل زر الإغلاق خلال ثوانٍ معدودة"
+            >
+              <X className="w-4 h-4 stroke-[2]" />
+            </div>
           )}
         </div>
       </div>
@@ -287,13 +315,17 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
           <div className="relative w-full h-full flex items-center justify-center bg-black">
             <video
               ref={videoRef}
-              src={adConfig.mediaUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'}
+              src={adConfig.mediaUrl}
               autoPlay
               muted={isMuted}
               playsInline
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleVideoEnded}
+              onError={() => {
+                console.warn('Rewarded video failed to play: unlocking close button');
+                triggerRewardCompletion();
+              }}
               className="w-full h-full object-contain md:max-w-4xl"
             />
 
@@ -349,7 +381,7 @@ export const RewardedAdModal: React.FC<RewardedAdModalProps> = ({
             {/* Standardized 55x55 pixel platform ad image */}
             <div className="w-[55px] h-[55px] min-w-[55px] min-h-[55px] rounded-xl overflow-hidden border-2 border-amber-400/80 shadow-md shrink-0 bg-slate-900 flex items-center justify-center">
               <img 
-                src={adConfig.mediaUrl || '/icon.svg'} 
+                src={adConfig.iconUrl || (!isVideo ? adConfig.mediaUrl : '') || '/icon.svg'} 
                 alt={adConfig.title}
                 className="w-[55px] h-[55px] object-cover"
               />
