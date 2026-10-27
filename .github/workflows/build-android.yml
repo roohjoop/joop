@@ -1,0 +1,87 @@
+name: Build Android APK (Debug)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'capacitor.config.ts'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build & Package Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Java JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+
+      - name: Build Web Application
+        run: |
+          npm run build
+
+      - name: Sync Capacitor Android
+        run: |
+          npx cap sync android
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: |
+          chmod +x android/gradlew
+
+      - name: Build Android Debug APK
+        working-directory: android
+        run: |
+          ./gradlew assembleDebug --stacktrace --no-daemon
+
+      - name: Verify Generated APK
+        run: |
+          echo "=== Verifying Generated APK ==="
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ -f "$APK_PATH" ]; then
+            ls -lh "$APK_PATH"
+            echo "✅ APK generated successfully at $APK_PATH"
+          else
+            echo "❌ APK file not found at $APK_PATH"
+            find android/app/build -name "*.apk" || true
+            exit 1
+          fi
+
+      - name: Upload APK to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rooh-pro-jobs-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
