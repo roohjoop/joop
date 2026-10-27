@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="50%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+    <linearGradient id="gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Rounded App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#brand-grad)" />
+
+  <!-- Inner Subtle Border -->
+  <rect x="8" y="8" width="496" height="496" rx="104" stroke="#ffffff" stroke-opacity="0.2" stroke-width="6" />
+
+  <!-- Central Briefcase & Tech Circuit Motif -->
+  <g filter="url(#shadow)">
+    <!-- Briefcase Body -->
+    <rect x="116" y="176" width="280" height="196" rx="28" fill="#ffffff" />
+    
+    <!-- Briefcase Handle -->
+    <path d="M196 176V136C196 122.745 206.745 112 220 112H292C305.255 112 316 122.745 316 136V176" stroke="#ffffff" stroke-width="26" stroke-linecap="round" fill="none" />
+    
+    <!-- Briefcase Latch Accent Bar -->
+    <path d="M116 236H396" stroke="#2563eb" stroke-width="12" />
+    <rect x="232" y="220" width="48" height="32" rx="8" fill="url(#gold-grad)" />
+
+    <!-- Tech Code / Sparkle Node (< / >) -->
+    <circle cx="206" cy="300" r="14" fill="#dc2626" />
+    <circle cx="256" cy="300" r="14" fill="#2563eb" />
+    <circle cx="306" cy="300" r="14" fill="#10b981" />
+  </g>
+
+  <!-- Tech Sparkle Stars -->
+  <path d="M390 120L398 140L418 148L398 156L390 176L382 156L362 148L382 140Z" fill="url(#gold-grad)" />
+  <path d="M110 390L116 404L130 410L116 416L110 430L104 416L90 410L104 404Z" fill="#ffffff" opacity="0.9" />
+
+  <!-- Arabic Typography Arc Accent: شغل وتقنيه -->
+  <text x="256" y="440" font-family="'Cairo', system-ui, sans-serif" font-weight="900" font-size="44" fill="#ffffff" text-anchor="middle" letter-spacing="1">
+    شغل وتقنيه
+  </text>
+</svg>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">شغل وتقنية</string>
+    <string name="title_activity_main">شغل وتقنية</string>
+    <string name="package_name">com.roohpro.jobs</string>
+    <string name="custom_url_scheme">com.roohpro.jobs</string>
+</resources>
