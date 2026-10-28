@@ -83,6 +83,8 @@ jobs:
           if [ -f "$APK_PATH" ]; then
             echo "✅ APK generated successfully!"
             ls -lh "$APK_PATH"
+            # Copy to user-friendly name
+            cp "$APK_PATH" "android/app/build/outputs/apk/debug/RoohProJobs-Debug.apk"
           else
             echo "❌ APK file not found at $APK_PATH!"
             find android/app/build -name "*.apk" || true
@@ -92,7 +94,7 @@ jobs:
       - name: Upload APK to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rooh-pro-jobs-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: RoohProJobs-Debug-APK
+          path: android/app/build/outputs/apk/debug/RoohProJobs-Debug.apk
           if-no-files-found: error
           retention-days: 14
