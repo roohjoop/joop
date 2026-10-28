@@ -43,6 +43,8 @@ import { DeveloperAuthModal } from './components/DeveloperAuthModal';
 import { DeveloperDashboardModal } from './components/DeveloperDashboardModal';
 import { RewardedAdModal } from './components/RewardedAdModal';
 import { InterstitialAdModal } from './components/InterstitialAdModal';
+import { StatusBar } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 import { 
   getDeveloperAdsState, 
   canShowInterstitialAd, 
@@ -231,6 +233,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('shoghl_active_email', activeAccountEmail);
   }, [activeAccountEmail]);
+
+  // Ensure full screen immersive layout on mobile native platform
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.hide().catch(() => {});
+      StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+    }
+  }, []);
 
   // When user enters the application: display attractive account linking modal if not connected yet
   useEffect(() => {
