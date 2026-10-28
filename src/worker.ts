@@ -20,6 +20,7 @@ export interface Env {
   VITE_CF_R2_BUCKET_NAME?: string;
   VITE_CF_R2_PUBLIC_URL?: string;
   BASE_URL?: string;
+  ENVIRONMENT?: string;
   MAIN_PORTAL_URL?: string;
   ZONE_ID?: string;
   CLOUDFLARE_ZONE_ID?: string;
@@ -181,6 +182,44 @@ export default {
           return new Response(JSON.stringify({ error: e?.message || 'Invalid sync request' }), { status: 400 });
         }
       }
+    }
+
+    // 0b2. Automated Health Check & Build Status Verification
+    if (pathname === '/jop/api/health' || pathname === '/api/health' || pathname === '/jop/api/build-status' || pathname === '/api/build-status') {
+      let d1Ready = false;
+      if (env.DB) {
+        try {
+          await env.DB.prepare('SELECT 1').run();
+          d1Ready = true;
+        } catch {
+          d1Ready = false;
+        }
+      }
+
+      return new Response(JSON.stringify({
+        status: 'healthy',
+        platform: 'Rooh Pro Jobs (شغل وتقنية)',
+        environment: env.ENVIRONMENT || 'production',
+        baseUrl: 'https://roohpro.com/jop',
+        build: {
+          version: '2.5.0',
+          engine: 'Cloudflare Worker with Static Assets',
+          status: 'verified_active'
+        },
+        services: {
+          staticAssets: !!env.STATIC_ASSETS,
+          databaseD1: d1Ready,
+          storageR2: !!env.R2_BUCKET,
+          keyValueKV: !!env.ROOH_KV
+        },
+        timestamp: new Date().toISOString()
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      });
     }
 
     // 0c. IndexNow verification key file

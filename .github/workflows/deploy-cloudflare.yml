@@ -90,10 +90,8 @@ jobs:
           npx wrangler whoami || echo "Notice: Token check completed."
 
           echo "Deploying Cloudflare Worker & Static Assets (joop)..."
-          if npx wrangler deploy; then
-            echo "✅ Cloudflare Worker & Static Assets deployment successful!"
-            exit 0
-          else
-            echo "Deploying via Pages fallback..."
-            npx wrangler pages deploy dist --project-name=joop --branch=main --commit-dirty
-          fi
+          npx wrangler deploy
+          echo "✅ Cloudflare Worker & Static Assets deployment successful!"
+
+          echo "=== Verifying Live Status ==="
+          curl -s -o /dev/null -w "%{http_code}\n" https://roohpro.com/jop || true

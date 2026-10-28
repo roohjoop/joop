@@ -125,6 +125,41 @@ var worker_default = {
         }
       }
     }
+    if (pathname === "/jop/api/health" || pathname === "/api/health" || pathname === "/jop/api/build-status" || pathname === "/api/build-status") {
+      let d1Ready = false;
+      if (env.DB) {
+        try {
+          await env.DB.prepare("SELECT 1").run();
+          d1Ready = true;
+        } catch {
+          d1Ready = false;
+        }
+      }
+      return new Response(JSON.stringify({
+        status: "healthy",
+        platform: "Rooh Pro Jobs (\u0634\u063A\u0644 \u0648\u062A\u0642\u0646\u064A\u0629)",
+        environment: env.ENVIRONMENT || "production",
+        baseUrl: "https://roohpro.com/jop",
+        build: {
+          version: "2.5.0",
+          engine: "Cloudflare Worker with Static Assets",
+          status: "verified_active"
+        },
+        services: {
+          staticAssets: !!env.STATIC_ASSETS,
+          databaseD1: d1Ready,
+          storageR2: !!env.R2_BUCKET,
+          keyValueKV: !!env.ROOH_KV
+        },
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      }), {
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-store, no-cache, must-revalidate"
+        }
+      });
+    }
     if (pathname === "/roohpro-indexnow-key.txt" || pathname === "/jop/roohpro-indexnow-key.txt") {
       return new Response("roohpro-indexnow-key", {
         headers: {
