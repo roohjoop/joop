@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -98,3 +98,13 @@ jobs:
           path: android/app/build/outputs/apk/debug/RoohProJobs-Debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish Direct APK Download (GitHub Release)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Publishing direct APK to GitHub Releases..."
+          gh release create android-debug "android/app/build/outputs/apk/debug/RoohProJobs-Debug.apk#تحميل تطبيق شغل وتقنية (APK مباشر)" \
+            --title "تطبيق شغل وتقنية - Rooh Pro Jobs (Android APK)" \
+            --notes "اضغط على ملف RoohProJobs-Debug.apk في الأسفل لتنزيل التطبيق مباشرة وتثبيته على هاتفك الأندرويد دون الحاجة لفك أي ضغط." \
+            --clobber || true
